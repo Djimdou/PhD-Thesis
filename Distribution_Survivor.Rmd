@@ -449,7 +449,7 @@ mtext(side=1, line=2, "z", font=2,cex=1.5)
 
 # Independence
 
-N = 100
+N = 1000
 
 R = rexp(n=N)
 Y1 = rexp(n=N)
@@ -457,3 +457,6 @@ Y2 = rexp(n=N)
 #S = Y1/(Y1+Y2),Y2/(Y1+Y2)
 X1 = exp(-R*Y1/(Y1+Y2))
 X2 = exp(-R*Y2/(Y1+Y2))
+C = exp(-X1)*exp(-X2)
+
+hist(C,breaks=30)
