@@ -11,6 +11,7 @@ A = seq(from=0.01,to=1/2,by=0.01)
 B = seq(from=0,to=500,by=0.001)
 Z = seq(from=0.01, to=0.99,by=0.001)
 M = 10**15
+N = 10000
 
 
 # # Independence copula
@@ -35,7 +36,10 @@ k_est = rep(NA,length(Z)) #
 for(j in 1:length(Z)){
   k_est[j] = 2*integrate(approxfun(x=A,y=integrand[,j]), lower = min(A), upper = max(A))[[1]]
 }
+
+
 # Graphical comparison for the densities
+
 Ylim = range(c(k_true,k_est))
 Xlabels = seq(from=0,to=1,by=0.2)
 Ylabels = seq(from=floor(min(c(k_true,k_est))),to=ceiling(max(c(k_true,k_est))))
@@ -47,7 +51,31 @@ lines(Z,k_true,col="green",lwd = 4)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2, "density", font=2,cex=1.5)
 legend(x=0.6,y=4,legend=c("estimated density", "true density"),lwd = 4,col=c("red", "green"),lty=1,cex=1.25,bty="n")
+
+# Adding simulation through McNeil and Neslehova method
+
+W = runif(n=N)
+R = -log(W)
+Y1 = rexp(n=N)
+Y2 = rexp(n=N)
+C_star = 1-exp(-R*Y1/(Y1+Y2))-exp(-R*Y2/(Y1+Y2))+W
+
+Ylim = range(c(k_true,k_est,density(C_star,n=length(Z))$y))
+Xlabels = seq(from=0,to=1,by=0.2)
+Ylabels = seq(from=floor(min(c(k_true,k_est,density(C_star,n=length(Z))$y))),to=ceiling(max(c(k_true,k_est,density(C_star,n=length(Z))$y))))
+par(mfrow=c(1,1))
+plot(Z,k_est,type="l",ylim = Ylim,lwd = 4,col="red",xlab="",ylab="",xaxt="none",yaxt="none")
+axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
+axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
+lines(Z,k_true,col="green",lwd = 4)
+lines(density(C_star,n=length(Z)),col="blue",lwd = 4)
+mtext(side=1, line=2, "z", font=2,cex=1.5)
+mtext(side=2, line=2, "density", font=2,cex=1.5)
+legend(x=0.6,y=9,legend=c("estimated density", "true density","from simulations"),lwd = 4,col=c("red", "green","blue"),lty=1,cex=1.25,bty="n")
+
+
 # Density of the Kendall distribution
+
 Ylim = range(k_true)
 Xlabels = seq(from=0,to=1,by=0.2)
 Ylabels = seq(from=floor(min(k_true)),to=ceiling(max(k_true)))
@@ -57,7 +85,9 @@ axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2, "density", font=2,cex=1.5)
+
 # Graphics for psi and its inverse
+
 psi = function(a,b){1-exp(-a*b)-exp(-(1-a)*b)+exp(-b)}
 Xlabels = seq(from=0,to=50,by=5)
 Ylabels = seq(from=0,to=1,by=0.2)
@@ -129,6 +159,30 @@ axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2.5, "density", font=2,cex=1.5)
 legend(x=0.8,y=3.5,legend=expression(paste(theta,"=0.1"),paste(theta,"=1"),paste(theta,"=3"),paste(theta,"=5")),lwd=4,col=c("green","blue","red","grey","black"),lty=1,bty="n",cex=1.25)
+
+# Comparison with simulations through McNeil and Neslehova method
+
+t=2
+
+W = runif(n=N)
+R = (W**(-Theta[t])-1)/Theta[t]
+Y1 = rexp(n=N)
+Y2 = rexp(n=N)
+C_star = 1-(Theta[t]*R*Y1/(Y1+Y2)+1)**(-1/Theta[t])-(Theta[t]*R*Y2/(Y1+Y2)+1)**(-1/Theta[t])+W
+
+Ylim = range(k_est,density(C_star,n=length(Z))$y)
+Xlabels = seq(from=0,to=1,by=0.2)
+Ylabels = seq(from=0,to=5)
+par(mfrow=c(1,1))
+
+plot(Z,k_est[t,],type="l",lwd = 4,col="red",xlab="",ylab="",ylim=Ylim,xaxt="none",yaxt="none")
+lines(density(C_star,n=length(Z)),lwd = 4,col="blue")
+axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
+axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
+mtext(side=1, line=2, "z", font=2,cex=1.5)
+mtext(side=2, line=2.5, "density", font=2,cex=1.5)
+legend(x=0.5,y=4.5,legend=c("through our method","from simulated values"),lwd=4,col=c("red","blue"),lty=1,bty="n",cex=1.25)
+
 
 # Graphics for the density of Kendall function
 
@@ -242,6 +296,28 @@ mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2.5, "density", font=2,cex=1.5)
 legend(x=0.6,y=4,legend=expression(paste(theta,"=1"),paste(theta,"=1.5"),paste(theta,"=3"),paste(theta,"=5"),paste(theta,"=10")),lwd=4,col=c("green","blue","red","grey","black"),lty=1,bty="n",cex=1.25)
 
+# Comparison with simulations through McNeil and Neslehova method
+
+t=2
+W = runif(n=N)
+R = (-log(W))**Theta[t]
+Y1 = rexp(n=N)
+Y2 = rexp(n=N)
+C_star = 1-exp(-(R*Y1/(Y1+Y2))**(1/Theta[t]))-exp(-(R*Y2/(Y1+Y2))**(1/Theta[t]))+W
+
+Ylim = range(k_est,density(C_star,n=length(Z))$y,na.rm = TRUE)
+Xlabels = seq(from=0,to=1,by=0.2)
+Ylabels = seq(from=floor(min(k_est,density(C_star,n=length(Z))$y,na.rm = TRUE)),to=ceiling(max(k_est,density(C_star,n=length(Z))$y,na.rm = TRUE)))
+par(mfrow=c(1,1))
+
+plot(Z,k_est[t,],type="l",lwd = 3,col="red",xlab="",ylab="",ylim=Ylim,xaxt="none",yaxt="none")
+lines(density(C_star,n=length(Z)),lwd = 3,col="blue")
+axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
+axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
+mtext(side=1, line=2, "z", font=2,cex=1.5)
+mtext(side=2, line=2.5, "density", font=2,cex=1.5)
+legend(x=0.5,y=4,legend=c("through our method","from simulated values"),lwd=4,col=c("red","blue"),lty=1,bty="n",cex=1.25)
+
 # Graphics for the Kendall density (of the copula)
 
 kendall_copula = matrix(NA,nrow=length(Theta),ncol=length(Z))
@@ -349,6 +425,29 @@ mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2.5, "density", font=2,cex=1.5)
 legend(x=0.6,y=7,legend=expression(paste(theta,"=-1"),paste(theta,"=-0.5"),paste(theta,"=0"),paste(theta,"=0.5"),paste(theta,"=0.99")),lwd=4,col=c("red","blue","green","grey","black"),lty=1,bty="n",cex=1.25)
 
+# Comparison with simulations through McNeil and Neslehova method
+
+t=2
+N = 10000
+W = runif(n=N)
+R = log((1-Theta[t]*(1-W))/W)
+Y1 = rexp(n=N)
+Y2 = rexp(n=N)
+C_star = 1-(1-Theta[t])/(exp(R*Y1/(Y1+Y2))-Theta[t])-(1-Theta[t])/(exp(R*Y2/(Y1+Y2))-Theta[t])+W
+
+Ylim = range(k_est,density(C_star)$y,na.rm = TRUE)
+Xlabels = seq(from=0,to=1,by=0.2)
+Ylabels = seq(from=floor(min(k_est,density(C_star)$y,na.rm = TRUE)),to=ceiling(max(k_est,density(C_star)$y,na.rm = TRUE)),by=2)
+par(mfrow=c(1,1))
+
+plot(Z,k_est[t,],type="l",lwd = 4,col="red",xlab="",ylab="",ylim=Ylim,xaxt="none",yaxt="none")
+lines(density(C_star),type="l",lwd = 4,col="blue")
+axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
+axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
+mtext(side=1, line=2, "z", font=2,cex=1.5)
+mtext(side=2, line=2.5, "density", font=2,cex=1.5)
+legend(x=0.5,y=12,legend=c("through our method","from simulated values"),lwd=4,col=c("red","blue","green","grey","black"),lty=1,bty="n",cex=1.25)
+
 # Graphics for the Kendall density (of the copula)
 
 kendall_copula = matrix(NA,nrow=length(Theta),ncol=length(Z))
@@ -408,7 +507,7 @@ axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
 
 
-# # Simulation: McNeil and Neslehova
+# # Simulation (McNeil and Neslehova): histogrammes
 
 # Independence
 
@@ -419,6 +518,7 @@ Y1 = rexp(n=N)
 Y2 = rexp(n=N)
 C_star = 1-exp(-R*Y1/(Y1+Y2))-exp(-R*Y2/(Y1+Y2))+W
 hist(C_star,breaks=100)
+lines(density(C_star))
 
 # Clayton
 
