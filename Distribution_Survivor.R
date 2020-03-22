@@ -523,7 +523,7 @@ lines(density(C_star))
 # Clayton
 
 Theta = c(0.1,1,3,5)
-t = 1
+t = 2
 N = 10000
 W = runif(n=N)
 R = (W**(-Theta[t])-1)/Theta[t]
@@ -535,7 +535,7 @@ hist(C_star,breaks=100)
 # Gumbel
 
 Theta = c(1,1.5,3,5,10)
-t = 1
+t = 2
 N = 10000
 W = runif(n=N)
 R = (-log(W))**Theta[t]
@@ -547,7 +547,7 @@ hist(C_star,breaks=100)
 # Ali-Mikhail-Haq
 
 Theta = c(-1,-1/2,0,1/2,0.99) 
-t = 5
+t = 2
 N = 10000
 W = runif(n=N)
 R = log((1-Theta[t]*(1-W))/W)
