@@ -71,7 +71,7 @@ lines(Z,k_true,col="green",lwd = 4)
 lines(density(C_star,from=0,to=1,n=length(Z)),col="blue",lwd = 4)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2, "density", font=2,cex=1.5)
-legend(x=0.6,y=9,legend=c("estimated density", "true density","from simulations"),lwd = 4,col=c("red", "green","blue"),lty=1,cex=1.25,bty="n")
+legend(x=0.5,y=10,legend=c("our estimation", "true density","from simulated values"),lwd = 4,col=c("red", "green","blue"),lty=1,cex=1.25,bty="n")
 
 
 # Density of the Kendall distribution
@@ -181,7 +181,7 @@ axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2.5, "density", font=2,cex=1.5)
-legend(x=0.5,y=4.5,legend=c("through our method","from simulated values"),lwd=4,col=c("red","blue"),lty=1,bty="n",cex=1.25)
+legend(x=0.5,y=4.5,legend=c("our estimation","from simulated values"),lwd=4,col=c("red","blue"),lty=1,bty="n",cex=1.25)
 
 
 # Graphics for the density of Kendall function
@@ -316,7 +316,7 @@ axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2.5, "density", font=2,cex=1.5)
-legend(x=0.5,y=4,legend=c("through our method","from simulated values"),lwd=4,col=c("red","blue"),lty=1,bty="n",cex=1.25)
+legend(x=0.5,y=4,legend=c("our estimation","from simulated values"),lwd=4,col=c("red","blue"),lty=1,bty="n",cex=1.25)
 
 # Graphics for the Kendall density (of the copula)
 
@@ -446,7 +446,7 @@ axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2.5, "density", font=2,cex=1.5)
-legend(x=0.5,y=12,legend=c("through our method","from simulated values"),lwd=4,col=c("red","blue","green","grey","black"),lty=1,bty="n",cex=1.25)
+legend(x=0.5,y=12,legend=c("our estimation","from simulated values"),lwd=4,col=c("red","blue","green","grey","black"),lty=1,bty="n",cex=1.25)
 
 # Graphics for the Kendall density (of the copula)
 
