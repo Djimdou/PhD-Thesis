@@ -11,7 +11,7 @@ A = seq(from=0.01,to=1/2,by=0.01)
 B = seq(from=0,to=500,by=0.001)
 Z = seq(from=0.01, to=0.99,by=0.001)
 M = 10**15
-N = 10000
+N = 10**4
 
 
 # # Independence copula
@@ -54,11 +54,11 @@ legend(x=0.6,y=4,legend=c("estimated density", "true density"),lwd = 4,col=c("re
 
 # Adding simulation through McNeil and Neslehova method
 
-W = runif(n=N)
-R = -log(W)
+#W = runif(n=N)
+R = -log(runif(n=N))
 Y1 = rexp(n=N)
 Y2 = rexp(n=N)
-C_star = 1-exp(-R*Y1/(Y1+Y2))-exp(-R*Y2/(Y1+Y2))+W
+C_star = 1-exp(-R*Y1/(Y1+Y2))-exp(-R*Y2/(Y1+Y2))+(R*Y1/(Y1+Y2))*(R*Y2/(Y1+Y2))
 
 Ylim = range(c(k_true,k_est,density(C_star,from=0,to=1,n=length(Z))$y))
 Xlabels = seq(from=0,to=1,by=0.2)
