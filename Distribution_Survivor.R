@@ -52,13 +52,13 @@ mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2, "density", font=2,cex=1.5)
 legend(x=0.6,y=4,legend=c("estimated density", "true density"),lwd = 4,col=c("red", "green"),lty=1,cex=1.25,bty="n")
 
-# Adding simulation through McNeil and Neslehova method
+# Comparison with simulated values (McNeil, Neshlahova)
 
-#W = runif(n=N)
-R = -log(runif(n=N))
+W = runif(n=N)
+R = -log(W)
 Y1 = rexp(n=N)
 Y2 = rexp(n=N)
-C_star = 1-exp(-R*Y1/(Y1+Y2))-exp(-R*Y2/(Y1+Y2))+(R*Y1/(Y1+Y2))*(R*Y2/(Y1+Y2))
+C_star = 1-exp(-R*Y1/(Y1+Y2))-exp(-R*Y2/(Y1+Y2))+W
 
 Ylim = range(c(k_true,k_est,density(C_star,from=0,to=1,n=length(Z))$y))
 Xlabels = seq(from=0,to=1,by=0.2)
