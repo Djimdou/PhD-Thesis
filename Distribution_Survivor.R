@@ -1,9 +1,9 @@
 # # Kendall function for survival distribution
 
-install.packages("GoFKernel")
+#install.packages("GoFKernel")
 library(GoFKernel)
 
-install.packages("extraDistr")# for Beta Prime distribution
+#install.packages("extraDistr")# for Beta Prime distribution
 library(extraDistr)
 
 #inverse = function (f, lower, upper) {
@@ -55,34 +55,14 @@ mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2, "density", font=2,cex=1.5)
 legend(x=0.6,y=4,legend=c("estimated density", "true density"),lwd = 4,col=c("red", "green"),lty=1,cex=1.25,bty="n")
 
-# Comparison with simulated values (McNeil, Neshlahova)
-
-W = runif(n=N)
-R = -log(W)
-Y1 = rexp(n=N)
-Y2 = rexp(n=N)
-C_star = 1-exp(-R*Y1/(Y1+Y2))-exp(-R*Y2/(Y1+Y2))+W
-
-Ylim = range(c(k_true,k_est,density(C_star,from=0,to=1,n=length(Z))$y))
-Xlabels = seq(from=0,to=1,by=0.2)
-Ylabels = seq(from=floor(min(c(k_true,k_est,density(C_star,from=0,to=1,n=length(Z))$y))),to=ceiling(max(c(k_true,k_est,density(C_star,from=0,to=1,n=length(Z))$y))))
-par(mfrow=c(1,1))
-plot(Z,k_est,type="l",ylim = Ylim,lwd = 4,col="red",xlab="",ylab="",xaxt="none",yaxt="none")
-axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
-axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
-lines(Z,k_true,col="green",lwd = 4)
-lines(density(C_star,from=0,to=1,n=length(Z)),col="blue",lwd = 4)
-mtext(side=1, line=2, "z", font=2,cex=1.5)
-mtext(side=2, line=2, "density", font=2,cex=1.5)
-legend(x=0.5,y=10,legend=c("our estimation", "true density","from simulated values"),lwd = 4,col=c("red", "green","blue"),lty=1,cex=1.25,bty="n")
-
-# Comparison with simulated values (reject)
+# Comparison with simulated values
 
 # gamma(alpha=2,beta=1): https://en.wikipedia.org/wiki/Gamma_distribution
 
-B1 = rgamma(n=N, shape=2, rate = 1)
-A1 = runif(n=N, min = 0, max = 1)
-C_star = (1-exp(-A1*B1))*(1-exp(-(1-A1)*B1))
+W = runif(n=N, min = 0, max = 1)
+S = rgamma(n=N, shape=2, rate = 1)
+T = -log(S)
+C_star = (1-exp(-W*T))*(1-exp(-(1-W)*T))
 density_C_star = density(C_star,from=0,to=1,n=length(Z))
 
 Ylim = range(c(k_true,density_C_star$y))
@@ -207,29 +187,29 @@ mtext(side=2, line=2.5, "density", font=2,cex=1.5)
 legend(x=0.5,y=4.5,legend=c("our estimation","from simulated values"),lwd=4,col=c("red","blue"),lty=1,bty="n",cex=1.25)
 
 
-# Comparison with simulated values (reject)
+# Comparison with simulated values (reject with Uniform)
 
-# Beta prime distribution: https://en.wikipedia.org/wiki/Beta_prime_distribution
+t=3
 
-t=3  # need theta >= 1
-
-A1 = runif(n=N, min = 0, max = 1)
-B1 = rep(NA,times=N)
+W = runif(n=N, min = 0, max = 1)
+S = rep(NA,times=N)
 
 for(i in 1:N)
 {
-  B0 = rbetapr(n=1, shape1=2, shape2=1/Theta[t], scale = 1)
+  B0 = runif(n=1, min = 0, max = 1)
   U = runif(n=1, min = 0, max = 1)
   
-  while(U > ((Theta[t]*B0+1)/(B0+1))**(-2-1/Theta[t]))
+  while(U > (1-B0*Theta[t]))
   {
-    B0 = rbetapr(n=1, shape1=2, shape2=1/Theta[t], scale = 1)
+    B0 = runif(n=1, min = 0, max = 1)
     U = runif(n=1, min = 0, max = 1)
   }
-  B1[i] = B0
+  S[i] = B0
 }
 
-C_star = 1-(Theta[t]*A1*B1+1)**(-1/Theta[t])-(Theta[t]*(1-A1)*B1+1)**(-1/Theta[t])+(Theta[t]*B1+1)**(-1/Theta[t])
+T = (1/Theta[t])*(S**(-Theta[t])-1)
+
+C_star = 1-(Theta[t]*W*T+1)**(-1/Theta[t])-(Theta[t]*(1-W)*T+1)**(-1/Theta[t])+(Theta[t]*T+1)**(-1/Theta[t])
 
 density_C_star = density(C_star,from=0,to=1,n=length(Z))
 
@@ -381,6 +361,45 @@ mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2.5, "density", font=2,cex=1.5)
 legend(x=0.5,y=4,legend=c("our estimation","from simulated values"),lwd=4,col=c("red","blue"),lty=1,bty="n",cex=1.25)
 
+# Comparison with simulated values (reject)
+
+# Generalized Gamma density: 
+
+t=2
+
+A1 = runif(n=N, min = 0, max = 1)
+B1 = rep(NA,times=N)
+
+for(i in 1:N)
+{
+  B0 = rbetapr(n=1, shape1=2, shape2=1/Theta[t], scale = 1)
+  U = runif(n=1, min = 0, max = 1)
+  
+  while(U > ((Theta[t]*B0+1)/(B0+1))**(-2-1/Theta[t]))
+  {
+    B0 = rbetapr(n=1, shape1=2, shape2=1/Theta[t], scale = 1)
+    U = runif(n=1, min = 0, max = 1)
+  }
+  B1[i] = B0
+}
+
+C_star = 1-(Theta[t]*A1*B1+1)**(-1/Theta[t])-(Theta[t]*(1-A1)*B1+1)**(-1/Theta[t])+(Theta[t]*B1+1)**(-1/Theta[t])
+
+density_C_star = density(C_star,from=0,to=1,n=length(Z))
+
+Ylim = range(c(k_est[t,],density_C_star$y))
+Xlabels = seq(from=0,to=1,by=0.2)
+Ylabels = seq(from=floor(min(c(k_est[t,],density_C_star$y))),to=ceiling(max(c(k_est[t,],density_C_star$y))))
+par(mfrow=c(1,1))
+plot(Z,k_est[t,],type="l",lwd = 4,col="red",xlab="",ylab="",ylim=Ylim,xaxt="none",yaxt="none")
+lines(density_C_star,lwd = 4,col="blue")
+axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
+axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
+mtext(side=1, line=2, "z", font=2,cex=1.5)
+mtext(side=2, line=2, "density", font=2,cex=1.5)
+legend(x=0.6,y=4,legend=c("density inversion","density simulations"),lwd = 4,col=c("red","blue"),lty=1,cex=1.25,bty="n")
+
+
 # Graphics for the Kendall density (of the copula)
 
 kendall_copula = matrix(NA,nrow=length(Theta),ncol=length(Z))
@@ -443,10 +462,6 @@ plot(Z[inv_a_z[45,]<=500],inv_a_z[45,inv_a_z[45,]<=500],type="l",col="red",lwd =
 axis(1, at=Ylabels,labels=Ylabels,las=1,font=2)
 axis(2, at=Xlabels,labels=Xlabels,las=1,font=2)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
-
-# Comparison with simulated values (reject)
-
-# Generalized Gamma density: https://en.wikipedia.org/wiki/Generalized_gamma_distribution
 
 
 # # # Ali-Mikhail-Haq 
