@@ -1,14 +1,6 @@
 # # Kendall function for survival distribution
 
-#install.packages("GoFKernel")
 library(GoFKernel)
-
-#install.packages("extraDistr")# for Beta Prime distribution
-library(extraDistr)
-
-#inverse = function (f, lower, upper) {
-#   function (y) uniroot((function (x) f(x) - y), lower = lower, upper = upper)[1]
-#}
 
 A = seq(from=0.01,to=1/2,by=0.01)
 B = seq(from=0,to=500,by=0.001)
@@ -57,11 +49,8 @@ legend(x=0.6,y=4,legend=c("estimated density", "true density"),lwd = 4,col=c("re
 
 # Comparison with simulated values
 
-# gamma(alpha=2,beta=1): https://en.wikipedia.org/wiki/Gamma_distribution
-
 W = runif(n=N, min = 0, max = 1)
-S = rgamma(n=N, shape=2, rate = 1)
-T = -log(S)
+T = rgamma(n=N, shape=2, rate = 1)
 C_star = (1-exp(-W*T))*(1-exp(-(1-W)*T))
 density_C_star = density(C_star,from=0,to=1,n=length(Z))
 
@@ -75,7 +64,7 @@ axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2, "density", font=2,cex=1.5)
-legend(x=0.6,y=4,legend=c("true density","estimated density"),lwd = 4,col=c("green","blue"),lty=1,cex=1.25,bty="n")
+legend(x=0.5,y=max(Ylim),legend=c("true density","from simulated values"),lwd = 4,col=c("green","blue"),lty=1,cex=1.25,bty="n")
 
 # Density of the Kendall distribution
 
@@ -127,13 +116,10 @@ mtext(side=1, line=2, "z", font=2,cex=1.5)
 Theta = c(0.1,1,3,5)
 inv_a_z = integrand = diff_a_z = matrix(NA,ncol=length(Z),nrow=length(A)) 
 k_est = matrix(NA,nrow=length(Theta),ncol=length(Z))
-#i0 = j0 = 0
 for(t in 1:length(Theta)){
   for(i in 1:length(A)){
-    #i0 = i0 + 1
     psi_inverse = inverse(function (z) {1-(Theta[t]*A[i]*z+1)**(-1/Theta[t])-(Theta[t]*(1-A[i])*z+1)**(-1/Theta[t])+(Theta[t]*z+1)**(-1/Theta[t])}, 0, M)
     for(j in 1:length(Z)){
-      #j0 = j0 + 1
       inv_a_z[i,j] = unlist(psi_inverse(Z[j]))
       diff_a_z[i,j] = 1/(A[i]*(Theta[t]*A[i]*inv_a_z[i,j]+1)**(-1/Theta[t]-1)+(1-A[i])*(Theta[t]*(1-A[i])*inv_a_z[i,j]+1)**(-1/Theta[t]-1)-(Theta[t]*inv_a_z[i,j]+1)**(-1/Theta[t]-1))
       integrand[i,j] = (Theta[t]+1)*inv_a_z[i,j]*(Theta[t]*inv_a_z[i,j]+1)**(-2-1/Theta[t]) * diff_a_z[i,j]
@@ -187,27 +173,14 @@ mtext(side=2, line=2.5, "density", font=2,cex=1.5)
 legend(x=0.5,y=4.5,legend=c("our estimation","from simulated values"),lwd=4,col=c("red","blue"),lty=1,bty="n",cex=1.25)
 
 
-# Comparison with simulated values (reject with Uniform)
+# Comparison with simulated values (reject)
 
 t=3
 
 W = runif(n=N, min = 0, max = 1)
-S = rep(NA,times=N)
+S = rbeta(n=N,shape1=1,shape2=1/Theta[t])
 
-for(i in 1:N)
-{
-  B0 = runif(n=1, min = 0, max = 1)
-  U = runif(n=1, min = 0, max = 1)
-  
-  while(U > (1-B0*Theta[t]))
-  {
-    B0 = runif(n=1, min = 0, max = 1)
-    U = runif(n=1, min = 0, max = 1)
-  }
-  S[i] = B0
-}
-
-T = (1/Theta[t])*(S**(-Theta[t])-1)
+T = (S**(-Theta[t])-1)/Theta[t]
 
 C_star = 1-(Theta[t]*W*T+1)**(-1/Theta[t])-(Theta[t]*(1-W)*T+1)**(-1/Theta[t])+(Theta[t]*T+1)**(-1/Theta[t])
 
@@ -215,7 +188,7 @@ density_C_star = density(C_star,from=0,to=1,n=length(Z))
 
 Ylim = range(c(k_est[t,],density_C_star$y))
 Xlabels = seq(from=0,to=1,by=0.2)
-Ylabels = seq(from=floor(min(c(k_est[t,],density_C_star$y))),to=ceiling(max(c(k_est[t,],density_C_star$y))))
+Ylabels = seq(from=floor(Ylim[1]),to=ceiling(Ylim[2]),length.out=5)
 par(mfrow=c(1,1))
 plot(Z,k_est[t,],type="l",lwd = 4,col="red",xlab="",ylab="",ylim=Ylim,xaxt="none",yaxt="none")
 lines(density_C_star,lwd = 4,col="blue")
@@ -223,8 +196,7 @@ axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2, "density", font=2,cex=1.5)
-legend(x=0.6,y=4,legend=c("density inversion","density simulations"),lwd = 4,col=c("red","blue"),lty=1,cex=1.25,bty="n")
-
+legend(x=0.4,y=max(Ylim),legend=c("density from Theorem 2.1","density from simulated values"),lwd = 4,col=c("red","blue"),lty=1,cex=1.25,bty="n")
 
 
 # Graphics for the density of Kendall function
@@ -363,33 +335,30 @@ legend(x=0.5,y=4,legend=c("our estimation","from simulated values"),lwd=4,col=c(
 
 # Comparison with simulated values (reject)
 
-# Generalized Gamma density: 
+t=3
 
-t=2
+W = runif(n=N, min = 0, max = 1)
+U = runif(n=N, min = 0, max = 1)
 
-A1 = runif(n=N, min = 0, max = 1)
-B1 = rep(NA,times=N)
+S = rep(NA,times=N)
 
-for(i in 1:N)
-{
-  B0 = rbetapr(n=1, shape1=2, shape2=1/Theta[t], scale = 1)
-  U = runif(n=1, min = 0, max = 1)
-  
-  while(U > ((Theta[t]*B0+1)/(B0+1))**(-2-1/Theta[t]))
-  {
-    B0 = rbetapr(n=1, shape1=2, shape2=1/Theta[t], scale = 1)
-    U = runif(n=1, min = 0, max = 1)
+for (i in 1:N){
+  if(U[i] < 1/Theta[t]){
+    S[i] = exp(-rgamma(n=1,shape=2,rate=1))
+  } else {
+    S[i] = runif(n=1,min=0,max=1)
   }
-  B1[i] = B0
 }
 
-C_star = 1-(Theta[t]*A1*B1+1)**(-1/Theta[t])-(Theta[t]*(1-A1)*B1+1)**(-1/Theta[t])+(Theta[t]*B1+1)**(-1/Theta[t])
+T = (-log(S))**Theta[t]
 
+C_star = 1-exp(-(W*T)**(1/Theta[t]))-exp(-((1-W)*T)**(1/Theta[t]))+exp(-T**(1/Theta[t]))
+  
 density_C_star = density(C_star,from=0,to=1,n=length(Z))
 
-Ylim = range(c(k_est[t,],density_C_star$y))
+Ylim = range(c(k_est[t,],density_C_star$y), na.rm = TRUE)
 Xlabels = seq(from=0,to=1,by=0.2)
-Ylabels = seq(from=floor(min(c(k_est[t,],density_C_star$y))),to=ceiling(max(c(k_est[t,],density_C_star$y))))
+Ylabels = seq(from=floor(Ylim[1]),to=ceiling(Ylim[2]),length.out = 6)
 par(mfrow=c(1,1))
 plot(Z,k_est[t,],type="l",lwd = 4,col="red",xlab="",ylab="",ylim=Ylim,xaxt="none",yaxt="none")
 lines(density_C_star,lwd = 4,col="blue")
@@ -397,7 +366,7 @@ axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2, "density", font=2,cex=1.5)
-legend(x=0.6,y=4,legend=c("density inversion","density simulations"),lwd = 4,col=c("red","blue"),lty=1,cex=1.25,bty="n")
+legend(x=0,y=0.5,legend=c("density from Theorem 2.1","density from simulated values"),lwd = 4,col=c("red","blue"),lty=1,cex=1.25,bty="n")
 
 
 # Graphics for the Kendall density (of the copula)
@@ -420,7 +389,9 @@ axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2.5, "density", font=2,cex=1.5)
 legend(x=0.6,y=4,legend=expression(paste(theta,"=1"),paste(theta,"=1.5"),paste(theta,"=3"),paste(theta,"=5"),paste(theta,"=10")),lwd=4,col=c("green","blue","red","grey","black"),lty=1,bty="n")
+
 # Graphics for psi and its inverse
+
 psi = function(a,b){1-exp(-(a*b)**(1/Theta[3]))-exp(-((1-a)*b)**(1/Theta[3]))+exp(-b**(1/Theta[3]))}
 
 Xlabels = seq(from=0,to=500,by=50)
