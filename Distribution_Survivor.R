@@ -149,29 +149,6 @@ mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2.5, "density", font=2,cex=1.5)
 legend(x=0.8,y=3.5,legend=expression(paste(theta,"=0.1"),paste(theta,"=1"),paste(theta,"=3"),paste(theta,"=5")),lwd=4,col=c("green","blue","red","grey","black"),lty=1,bty="n",cex=1.25)
 
-# Comparison with simulations through McNeil and Neslehova method
-
-t=2
-
-W = runif(n=N)
-R = (W**(-Theta[t])-1)/Theta[t]
-Y1 = rexp(n=N)
-Y2 = rexp(n=N)
-C_star = 1-(Theta[t]*R*Y1/(Y1+Y2)+1)**(-1/Theta[t])-(Theta[t]*R*Y2/(Y1+Y2)+1)**(-1/Theta[t])+W
-
-Ylim = range(k_est,density(C_star,from=0,to=1,n=length(Z))$y)
-Xlabels = seq(from=0,to=1,by=0.2)
-Ylabels = seq(from=0,to=5)
-par(mfrow=c(1,1))
-
-plot(Z,k_est[t,],type="l",lwd = 4,col="red",xlab="",ylab="",ylim=Ylim,xaxt="none",yaxt="none")
-lines(density(C_star,from=0,to=1,n=length(Z)),lwd = 4,col="blue")
-axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
-axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
-mtext(side=1, line=2, "z", font=2,cex=1.5)
-mtext(side=2, line=2.5, "density", font=2,cex=1.5)
-legend(x=0.5,y=4.5,legend=c("our estimation","from simulated values"),lwd=4,col=c("red","blue"),lty=1,bty="n",cex=1.25)
-
 
 # Comparison with simulated values (reject)
 
@@ -311,27 +288,6 @@ mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2.5, "density", font=2,cex=1.5)
 legend(x=0.6,y=4,legend=expression(paste(theta,"=1"),paste(theta,"=1.5"),paste(theta,"=3"),paste(theta,"=5"),paste(theta,"=10")),lwd=4,col=c("green","blue","red","grey","black"),lty=1,bty="n",cex=1.25)
 
-# Comparison with simulations through McNeil and Neslehova method
-
-t=2
-W = runif(n=N)
-R = (-log(W))**Theta[t]
-Y1 = rexp(n=N)
-Y2 = rexp(n=N)
-C_star = 1-exp(-(R*Y1/(Y1+Y2))**(1/Theta[t]))-exp(-(R*Y2/(Y1+Y2))**(1/Theta[t]))+W
-
-Ylim = range(k_est,density(C_star,from=0,to=1,n=length(Z))$y,na.rm = TRUE)
-Xlabels = seq(from=0,to=1,by=0.2)
-Ylabels = seq(from=floor(min(k_est,density(C_star,from=0,to=1,n=length(Z))$y,na.rm = TRUE)),to=ceiling(max(k_est,density(C_star,from=0,to=1,n=length(Z))$y,na.rm = TRUE)))
-par(mfrow=c(1,1))
-
-plot(Z,k_est[t,],type="l",lwd = 3,col="red",xlab="",ylab="",ylim=Ylim,xaxt="none",yaxt="none")
-lines(density(C_star,from=0,to=1,n=length(Z)),lwd = 3,col="blue")
-axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
-axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
-mtext(side=1, line=2, "z", font=2,cex=1.5)
-mtext(side=2, line=2.5, "density", font=2,cex=1.5)
-legend(x=0.5,y=4,legend=c("our estimation","from simulated values"),lwd=4,col=c("red","blue"),lty=1,bty="n",cex=1.25)
 
 # Comparison with simulated values (reject)
 
@@ -478,28 +434,6 @@ mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2.5, "density", font=2,cex=1.5)
 legend(x=0.6,y=7,legend=expression(paste(theta,"=-1"),paste(theta,"=-0.5"),paste(theta,"=0"),paste(theta,"=0.5"),paste(theta,"=0.99")),lwd=4,col=c("red","blue","green","grey","black"),lty=1,bty="n",cex=1.25)
 
-# Comparison with simulations through McNeil and Neslehova method
-
-t=2
-N = 10000
-W = runif(n=N)
-R = log((1-Theta[t]*(1-W))/W)
-Y1 = rexp(n=N)
-Y2 = rexp(n=N)
-C_star = 1-(1-Theta[t])/(exp(R*Y1/(Y1+Y2))-Theta[t])-(1-Theta[t])/(exp(R*Y2/(Y1+Y2))-Theta[t])+W
-
-Ylim = range(k_est,density(C_star,from=0,to=1,n=length(Z))$y,na.rm = TRUE)
-Xlabels = seq(from=0,to=1,by=0.2)
-Ylabels = seq(from=floor(min(k_est,density(C_star,from=0,to=1,n=length(Z))$y,na.rm = TRUE)),to=ceiling(max(k_est,density(C_star,from=0,to=1,n=length(Z))$y,na.rm = TRUE)),by=2)
-par(mfrow=c(1,1))
-
-plot(Z,k_est[t,],type="l",lwd = 4,col="red",xlab="",ylab="",ylim=Ylim,xaxt="none",yaxt="none")
-lines(density(C_star,from=0,to=1,n=length(Z)),type="l",lwd = 4,col="blue")
-axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
-axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
-mtext(side=1, line=2, "z", font=2,cex=1.5)
-mtext(side=2, line=2.5, "density", font=2,cex=1.5)
-legend(x=0.5,y=12,legend=c("our estimation","from simulated values"),lwd=4,col=c("red","blue","green","grey","black"),lty=1,bty="n",cex=1.25)
 
 # Graphics for the Kendall density (of the copula)
 
@@ -558,53 +492,3 @@ plot(Z,inv_a_z[45,],type="l",col="red",lwd = 4,xlab="",ylab="",ylim=Ylim,xaxt="n
 axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
-
-
-# # Simulation (McNeil and Neslehova): histogrammes
-
-# Independence
-
-N = 10000
-W = runif(n=N)
-R = -log(W)
-Y1 = rexp(n=N)
-Y2 = rexp(n=N)
-C_star = 1-exp(-R*Y1/(Y1+Y2))-exp(-R*Y2/(Y1+Y2))+W
-hist(C_star,breaks=100)
-lines(density(C_star))
-
-# Clayton
-
-Theta = c(0.1,1,3,5)
-t = 2
-N = 10000
-W = runif(n=N)
-R = (W**(-Theta[t])-1)/Theta[t]
-Y1 = rexp(n=N)
-Y2 = rexp(n=N)
-C_star = 1-(Theta[t]*R*Y1/(Y1+Y2)+1)**(-1/Theta[t])-(Theta[t]*R*Y2/(Y1+Y2)+1)**(-1/Theta[t])+W
-hist(C_star,breaks=100)
-
-# Gumbel
-
-Theta = c(1,1.5,3,5,10)
-t = 2
-N = 10000
-W = runif(n=N)
-R = (-log(W))**Theta[t]
-Y1 = rexp(n=N)
-Y2 = rexp(n=N)
-C_star = 1-exp(-(R*Y1/(Y1+Y2))**(1/Theta[t]))-exp(-(R*Y2/(Y1+Y2))**(1/Theta[t]))+W
-hist(C_star,breaks=100)
-
-# Ali-Mikhail-Haq
-
-Theta = c(-1,-1/2,0,1/2,0.99) 
-t = 2
-N = 10000
-W = runif(n=N)
-R = log((1-Theta[t]*(1-W))/W)
-Y1 = rexp(n=N)
-Y2 = rexp(n=N)
-C_star = 1-(1-Theta[t])/(exp(R*Y1/(Y1+Y2))-Theta[t])-(1-Theta[t])/(exp(R*Y2/(Y1+Y2))-Theta[t])+W
-hist(C_star,breaks=100)
