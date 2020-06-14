@@ -20,6 +20,7 @@
 #install.packages("rJava")
 #library(rJava)
 library(tabulizer)
+library(MASS) # for ginv
 
 #install.packages("dplyr")
 library(dplyr)
@@ -64,11 +65,50 @@ for(i in 1:n){
   }
 }
 
+b = (KidneyInfection$uncensored1*KidneyInfection$uncensored2)/(1:n+1)
+B = diag(c(b,1))
 
-# # Kendall's tau
+c = b/(1-b)
 
+p = rep(NA,n+1)
+p[n+1] = 1/(n+1)
 
+for(i in n:1){
+  p[i] = c[i]*sum(A[i,(i+1):(n+1)]*p[(i+1):(n+1)])
+}
 
+F_bar = A%*%p
+
+# Its covariance matrix
+
+Matrix1 = rbind(diag(1,n) - A%*%B,-b)
+Matrix2 = cbind(t(diag(1,n) - A%*%B),-b)
+Matrix3 = (rbind(A%*%B%*%diag(F_bar),b%*%diag(F_bar)))%*%(diag(1,n) + B%*%D%*%B)%*%cbind(diag(F_bar)%*%B%*%A,diag(F_bar)%*%b)
+
+V = ginv(Matrix1)%*%Matrix3%*%ginv(Matrix2)
+
+# # Kendall's tau variance
+
+A = A[-(n+1),-(n+1)]
+B = B[-(n+1),-(n+1)]
+F_bar = F_bar[-(n+1)]
+
+D = matrix(NA,nrow=n,ncol=n)
+
+for(i in 1:n){
+  for(j in 1:n){
+    D[i,j] = (1-A[i,j])*(1-A[j,i])*(A[i,]%*%A[,j])
+  }
+}
+
+Matrix1 = rbind(diag(1,n) - A%*%B,-b)
+Matrix2 = (rbind(A%*%B%*%diag(F_bar),b%*%diag(F_bar)))%*%(diag(1,n) + B%*%D%*%B)%*%(diag(F_bar)%*%B%*%F_bar)
+
+W_hat = ginv(Matrix1)%*%Matrix2
+
+V_tau = F_bar%*%B%*%V%*%B%*%F_bar+
+        2*F_bar%*%B%*%W_hat+
+        F_bar%*%B%*%diag(F_bar)%*%(diag(1,n)+B%*%D%*%B)%*%diag(F_bar)%*%B%*%F_bar
 
 
 
