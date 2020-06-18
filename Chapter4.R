@@ -23,7 +23,6 @@ library(dplyr)
 # McGilchrist, C. A., and C. W. Aisbett. "Regression with Frailty in Survival Analysis."
 # Biometrics, vol. 47, no. 2, 1991, pp. 461-466.
 
-
 location = 'C:/Users/djimd/OneDrive/Documents/Concordia - PhD/Thesis/McGilchrist_Aisbett-1991.pdf'
 
 # Extract the table
@@ -152,7 +151,7 @@ for(i in 1:n){
   }
 }
 
-b = (KidneyInfection$uncensored1*KidneyInfection$uncensored2)/(1:n+1)
+b = (canlifins$UncensoredM*canlifins$UncensoredF)/(1:n+1)
 B = diag(c(b,1))
 
 c = b/(1-b)
