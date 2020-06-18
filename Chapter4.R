@@ -1,6 +1,9 @@
-# Data from 
-# McGilchrist, C. A., and C. W. Aisbett. "Regression with Frailty in Survival Analysis."
-# Biometrics, vol. 47, no. 2, 1991, pp. 461-466.
+library(tabulizer)
+library(MASS) # for ginv
+
+#install.packages("dplyr")
+library(dplyr)
+
 
 
 # # #  Numerical application
@@ -16,14 +19,10 @@
 
 # # # Real data
 
-# install.packages("tabulizer")
-#install.packages("rJava")
-#library(rJava)
-library(tabulizer)
-library(MASS) # for ginv
+# Epidemiology Data from 
+# McGilchrist, C. A., and C. W. Aisbett. "Regression with Frailty in Survival Analysis."
+# Biometrics, vol. 47, no. 2, 1991, pp. 461-466.
 
-#install.packages("dplyr")
-library(dplyr)
 
 location = 'C:/Users/djimd/OneDrive/Documents/Concordia - PhD/Thesis/McGilchrist_Aisbett-1991.pdf'
 
@@ -79,6 +78,10 @@ for(i in n:1){
 
 F_bar = A%*%p
 
+A = A[-(n+1),-(n+1)]
+B = B[-(n+1),-(n+1)]
+F_bar = F_bar[-(n+1)]
+
 # Its covariance matrix
 
 Matrix1 = rbind(diag(1,n) - A%*%B,-b)
@@ -88,10 +91,6 @@ Matrix3 = (rbind(A%*%B%*%diag(F_bar),b%*%diag(F_bar)))%*%(diag(1,n) + B%*%D%*%B)
 V = ginv(Matrix1)%*%Matrix3%*%ginv(Matrix2)
 
 # # Kendall's tau variance
-
-A = A[-(n+1),-(n+1)]
-B = B[-(n+1),-(n+1)]
-F_bar = F_bar[-(n+1)]
 
 D = matrix(NA,nrow=n,ncol=n)
 
@@ -111,19 +110,89 @@ V_tau = F_bar%*%B%*%V%*%B%*%F_bar+
         F_bar%*%B%*%diag(F_bar)%*%(diag(1,n)+B%*%D%*%B)%*%diag(F_bar)%*%B%*%F_bar
 
 
+# # # Insurance data from 
+# # Frees, Edward W., et al. "Annuity Valuation with Dependent Mortality." 
+# The Journal of Risk and Insurance, vol. 63, no. 2, 1996, pp. 229-261.
+
+# Link: http://cas.uqam.ca/
+
+#install.packages('xts')
+library(xts)
+#install.packages('sp')
+library(sp)
+#install.packages('zoo')
+library(zoo)
+
+install.packages("CASdatasets", repos = "http://cas.uqam.ca/pub/R/", type="source")
+library(CASdatasets)
+data(canlifins) # load the dataset
+# 14,889 contracts where one annuitant is male and the other female
 
 
+# # Estimator 
 
+n = dim(canlifins)[1]
 
-# # Police shooting in US
+canlifins$UncensoredM = 1-as.integer(canlifins$DeathTimeM==0)
+canlifins$UncensoredF = 1-as.integer(canlifins$DeathTimeF==0)
 
-wash_data = read.csv2(file="https://raw.githubusercontent.com/washingtonpost/data-police-shootings/master/fatal-police-shootings-data.csv",header = TRUE,sep = ",")
+#canlifins$DurationM = canlifins$EntryAgeM + canlifins$DeathTimeM
+#canlifins$DurationF = canlifins$EntryAgeF + canlifins$DeathTimeF
 
-table(wash_data[,'race'])
-year = lubridate::year(wash_data[,'date'])
+ordre = order(canlifins$DeathTimeM,canlifins$DeathTimeF)
+Z_ordered = cbind(canlifins$DeathTimeM,canlifins$DeathTimeF)[ordre,]
 
-table(lubridate::year(wash_data[,'date']),wash_data[,'race'])
+A = matrix(0,ncol=n+1,nrow=n+1)
+A[,n+1] = 1
+A[n+1,] = 1
 
-armed = wash_data[wash_data[,'armed']=='gun',]
+for(i in 1:n){
+  for(k in 1:n){
+    A[i,k] = ifelse((Z_ordered[k,1] >= Z_ordered[i,1]) & (Z_ordered[k,1] >= Z_ordered[i,1]),1,0)
+  }
+}
 
-table(year = lubridate::year(armed[,'date']),armed[,'race'])
+b = (KidneyInfection$uncensored1*KidneyInfection$uncensored2)/(1:n+1)
+B = diag(c(b,1))
+
+c = b/(1-b)
+
+p = rep(NA,n+1)
+p[n+1] = 1/(n+1)
+
+for(i in n:1){
+  p[i] = c[i]*sum(A[i,(i+1):(n+1)]*p[(i+1):(n+1)])
+}
+
+F_bar = A%*%p
+
+A = A[-(n+1),-(n+1)]
+B = B[-(n+1),-(n+1)]
+F_bar = F_bar[-(n+1)]
+
+# Its covariance matrix
+
+Matrix1 = rbind(diag(1,n) - A%*%B,-b)
+Matrix2 = cbind(t(diag(1,n) - A%*%B),-b)
+Matrix3 = (rbind(A%*%B%*%diag(F_bar),b%*%diag(F_bar)))%*%(diag(1,n) + B%*%D%*%B)%*%cbind(diag(F_bar)%*%B%*%A,diag(F_bar)%*%b)
+
+V = ginv(Matrix1)%*%Matrix3%*%ginv(Matrix2)
+
+# # Kendall's tau variance
+
+D = matrix(NA,nrow=n,ncol=n)
+
+for(i in 1:n){
+  for(j in 1:n){
+    D[i,j] = (1-A[i,j])*(1-A[j,i])*(A[i,]%*%A[,j])
+  }
+}
+
+Matrix1 = rbind(diag(1,n) - A%*%B,-b)
+Matrix2 = (rbind(A%*%B%*%diag(F_bar),b%*%diag(F_bar)))%*%(diag(1,n) + B%*%D%*%B)%*%(diag(F_bar)%*%B%*%F_bar)
+
+W_hat = ginv(Matrix1)%*%Matrix2
+
+V_tau = F_bar%*%B%*%V%*%B%*%F_bar+
+  2*F_bar%*%B%*%W_hat+
+  F_bar%*%B%*%diag(F_bar)%*%(diag(1,n)+B%*%D%*%B)%*%diag(F_bar)%*%B%*%F_bar
