@@ -59,7 +59,15 @@ A[n+1,] = 1
 
 for(i in 1:n){
   for(k in 1:n){
-    A[i,k] = ifelse((Z_ordered[k,1] >= Z_ordered[i,1]) & (Z_ordered[k,1] >= Z_ordered[i,1]),1,0)
+    A[i,k] = ifelse((Z_ordered[k,1] >= Z_ordered[i,1]) & (Z_ordered[k,2] >= Z_ordered[i,2]),1,0)
+  }
+}
+
+D = matrix(NA,nrow=n,ncol=n)
+
+for(i in 1:n){
+  for(j in 1:n){
+    D[i,j] = (1-A[i,j])*(1-A[j,i])*(A[i,]%*%A[,j])
   }
 }
 
@@ -91,14 +99,6 @@ V = ginv(Matrix1)%*%Matrix3%*%ginv(Matrix2)
 
 # # Kendall's tau variance
 
-D = matrix(NA,nrow=n,ncol=n)
-
-for(i in 1:n){
-  for(j in 1:n){
-    D[i,j] = (1-A[i,j])*(1-A[j,i])*(A[i,]%*%A[,j])
-  }
-}
-
 Matrix1 = rbind(diag(1,n) - A%*%B,-b)
 Matrix2 = (rbind(A%*%B%*%diag(F_bar),b%*%diag(F_bar)))%*%(diag(1,n) + B%*%D%*%B)%*%(diag(F_bar)%*%B%*%F_bar)
 
@@ -127,16 +127,30 @@ library(CASdatasets)
 data(canlifins) # load the dataset
 # 14,889 contracts where one annuitant is male and the other female
 
+#write.csv(canlifins,file="C:/Users/djimd/OneDrive/Documents/Concordia - PhD/Thesis/canlifins.csv",row.names = FALSE)
+
+canlifins$UncensoredM = as.integer((canlifins$AnnuityExpiredM >= canlifins$DeathTimeM) & (canlifins$DeathTimeM > 0))
+canlifins$UncensoredF = as.integer((canlifins$AnnuityExpiredM >= canlifins$DeathTimeF) & (canlifins$DeathTimeF > 0))
+
+Sample = sample(1:dim(canlifins)[1],size = 3000)
+#AtLeastOneCensored = which((canlifins$AnnuityExpiredM > canlifins$DeathTimeM)|(canlifins$AnnuityExpiredM > canlifins$DeathTimeF))
+canlifins = canlifins[Sample,]
+
+c(
+sum((canlifins$UncensoredM == 0) & (canlifins$UncensoredF == 0)), # number of doubly censored couples
+sum((canlifins$UncensoredM != 0) & (canlifins$UncensoredF == 0)), # number of couples where only the woman is censored
+sum((canlifins$UncensoredM == 0) & (canlifins$UncensoredF != 0)) # number of couples where only the man is censored
+)
 
 # # Estimator 
 
 n = dim(canlifins)[1]
 
-canlifins$UncensoredM = 1-as.integer(canlifins$DeathTimeM==0)
-canlifins$UncensoredF = 1-as.integer(canlifins$DeathTimeF==0)
+#canlifins$UncensoredM = 1-as.integer(canlifins$DeathTimeM==0)
+#canlifins$UncensoredF = 1-as.integer(canlifins$DeathTimeF==0)
 
-#canlifins$DurationM = canlifins$EntryAgeM + canlifins$DeathTimeM
-#canlifins$DurationF = canlifins$EntryAgeF + canlifins$DeathTimeF
+canlifins[canlifins$DeathTimeM == 0,"DeathTimeM"] = max(canlifins$DeathTimeM)
+canlifins[canlifins$DeathTimeF == 0,"DeathTimeF"] = max(canlifins$DeathTimeF)
 
 ordre = order(canlifins$DeathTimeM,canlifins$DeathTimeF)
 Z_ordered = cbind(canlifins$DeathTimeM,canlifins$DeathTimeF)[ordre,]
@@ -147,7 +161,15 @@ A[n+1,] = 1
 
 for(i in 1:n){
   for(k in 1:n){
-    A[i,k] = ifelse((Z_ordered[k,1] >= Z_ordered[i,1]) & (Z_ordered[k,1] >= Z_ordered[i,1]),1,0)
+    A[i,k] = ifelse((Z_ordered[k,1] >= Z_ordered[i,1]) & (Z_ordered[k,2] >= Z_ordered[i,2]),1,0)
+  }
+}
+
+D = matrix(NA,nrow=n,ncol=n)
+
+for(i in 1:n){
+  for(j in 1:n){
+    D[i,j] = (1-A[i,j])*(1-A[j,i])*(A[i,]%*%A[,j])
   }
 }
 
@@ -169,6 +191,7 @@ A = A[-(n+1),-(n+1)]
 B = B[-(n+1),-(n+1)]
 F_bar = F_bar[-(n+1)]
 
+
 # Its covariance matrix
 
 Matrix1 = rbind(diag(1,n) - A%*%B,-b)
@@ -178,14 +201,6 @@ Matrix3 = (rbind(A%*%B%*%diag(F_bar),b%*%diag(F_bar)))%*%(diag(1,n) + B%*%D%*%B)
 V = ginv(Matrix1)%*%Matrix3%*%ginv(Matrix2)
 
 # # Kendall's tau variance
-
-D = matrix(NA,nrow=n,ncol=n)
-
-for(i in 1:n){
-  for(j in 1:n){
-    D[i,j] = (1-A[i,j])*(1-A[j,i])*(A[i,]%*%A[,j])
-  }
-}
 
 Matrix1 = rbind(diag(1,n) - A%*%B,-b)
 Matrix2 = (rbind(A%*%B%*%diag(F_bar),b%*%diag(F_bar)))%*%(diag(1,n) + B%*%D%*%B)%*%(diag(F_bar)%*%B%*%F_bar)
