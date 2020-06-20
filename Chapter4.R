@@ -49,8 +49,7 @@ colnames(KidneyInfection) = c("T1","T2","uncensored1","uncensored2")
 
 n = dim(KidneyInfection)[1]
 
-#Z = apply(X=KidneyInfection[,c("T1","T2")], MARGIN=1, FUN=min)
-ordre = order(KidneyInfection$T1,KidneyInfection$T2)
+ordre = order(KidneyInfection$T1,KidneyInfection$T2)#
 Z_ordered = cbind(KidneyInfection$T1,KidneyInfection$T2)[ordre,]
 
 A = matrix(0,ncol=n+1,nrow=n+1)
@@ -71,7 +70,7 @@ for(i in 1:n){
   }
 }
 
-b = (KidneyInfection$uncensored1*KidneyInfection$uncensored2)/(1:n+1)
+b = (KidneyInfection$uncensored1*KidneyInfection$uncensored2)[ordre]/(n:1+1)
 B = diag(c(b,1))
 
 c = b/(1-b)
@@ -80,14 +79,22 @@ p = rep(NA,n+1)
 p[n+1] = 1/(n+1)
 
 for(i in n:1){
-  p[i] = c[i]*sum(A[i,(i+1):(n+1)]*p[(i+1):(n+1)])
+  # Equation (3.5) from Sen & Stute (2013)
+  p[i] = c[i]*(A[i,(i+1):(n+1)]%*%p[(i+1):(n+1)])
 }
+
+p = p/sum(p)
 
 F_bar = A%*%p
 
 A = A[-(n+1),-(n+1)]
 B = B[-(n+1),-(n+1)]
 F_bar = F_bar[-(n+1)]
+
+#grid = expand.grid(Z_ordered[,1],Z_ordered[,2])
+#F_bar_n = 
+
+#(grid[1,1] <= Z_ordered[,1]) & (grid[1,2] <= Z_ordered[,2])
 
 # Its covariance matrix
 
@@ -107,6 +114,9 @@ W_hat = ginv(Matrix1)%*%Matrix2
 V_tau = F_bar%*%B%*%V%*%B%*%F_bar+
         2*F_bar%*%B%*%W_hat+
         F_bar%*%B%*%diag(F_bar)%*%(diag(1,n)+B%*%D%*%B)%*%diag(F_bar)%*%B%*%F_bar
+
+
+
 
 
 # # # Insurance data from 
