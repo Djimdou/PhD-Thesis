@@ -1,7 +1,5 @@
 library(tabulizer)
 library(MASS) # for ginv
-
-#install.packages("dplyr")
 library(dplyr)
 
 
@@ -22,6 +20,12 @@ library(dplyr)
 # Epidemiology Data from 
 # McGilchrist, C. A., and C. W. Aisbett. "Regression with Frailty in Survival Analysis."
 # Biometrics, vol. 47, no. 2, 1991, pp. 461-466.
+
+#################################### USE THIS:####################################
+# For data (Z1, Z2, del1, del2), sample size = n
+
+library(tabulizer)
+library(dplyr)
 
 location = 'C:/Users/djimd/OneDrive/Documents/Concordia - PhD/Thesis/McGilchrist_Aisbett-1991.pdf'
 
@@ -52,68 +56,56 @@ n = dim(KidneyInfection)[1]
 ordre = order(KidneyInfection$T1,KidneyInfection$T2)#
 Z_ordered = cbind(KidneyInfection$T1,KidneyInfection$T2)[ordre,]
 
-A = matrix(0,ncol=n+1,nrow=n+1)
-A[,n+1] = 1
-A[n+1,] = 1
+#Z1 = Z_ordered[,1]
+#Z2 = Z_ordered[,2]
+del1 = KidneyInfection$uncensored1 
+del2 = KidneyInfection$uncensored2
 
-for(i in 1:n){
-  for(k in 1:n){
-    A[i,k] = ifelse((Z_ordered[k,1] >= Z_ordered[i,1]) & (Z_ordered[k,2] >= Z_ordered[i,2]),1,0)
-  }
-}
+xinf=max(Z_ordered[,1],Z_ordered[,2])+1 # CREATING POINT AT INFINITY
+Z1=c(Z_ordered[,1],xinf)
+Z2=c(Z_ordered[,2],xinf)
 
-D = matrix(NA,nrow=n,ncol=n)
+del1=c(del1,1)
+del2=c(del2,1)
+del=del1*del2
 
-for(i in 1:n){
-  for(j in 1:n){
-    D[i,j] = (1-A[i,j])*(1-A[j,i])*(A[i,]%*%A[,j])
-  }
-}
+az1=matrix(rep(Z1,n+1),ncol=n+1)
+az2=matrix(rep(Z2,n+1),ncol=n+1)
+A=(t(az1)>=az1)*(t(az2)>=az2)
+rsumA=apply(A,1,sum)
 
-b = (KidneyInfection$uncensored1*KidneyInfection$uncensored2)[ordre]/(n:1+1)
-B = diag(c(b,1))
+eps=1/(n+1)
 
-c = b/(1-b)
+b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+B=diag(b)
 
-p = rep(NA,n+1)
-p[n+1] = 1/(n+1)
+Id=diag(rep(1,n+1))
+M=rbind(Id-A%*%B,-t(b))
+MMinv=solve(t(M)%*%M)
+Fbar=MMinv%*%b ### <---- THIS IS THE \bar{F} VECTOR
+phat=Fbar[n+1]
 
-for(i in n:1){
-  # Equation (3.5) from Sen & Stute (2013)
-  p[i] = c[i]*(A[i,(i+1):(n+1)]%*%p[(i+1):(n+1)])
-}
+# Variance estimator
 
-p = p/sum(p)
+D=(1-A)*(1-t(A))*(A%*%t(A))
+bf=b*Fbar
+BF=diag(bf[1:(n+1)])
+S=rbind(A%*%BF,t(bf))
+R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
+U=(t(M)%*%R)%*%M
+V=(MMinv%*%U)%*%MMinv
 
-F_bar = A%*%p
-
-A = A[-(n+1),-(n+1)]
-B = B[-(n+1),-(n+1)]
-F_bar = F_bar[-(n+1)]
-
-#grid = expand.grid(Z_ordered[,1],Z_ordered[,2])
-#F_bar_n = 
-
-#(grid[1,1] <= Z_ordered[,1]) & (grid[1,2] <= Z_ordered[,2])
-
-# Its covariance matrix
-
-Matrix1 = rbind(diag(1,n) - A%*%B,-b)
-Matrix2 = cbind(t(diag(1,n) - A%*%B),-b)
-Matrix3 = (rbind(A%*%B%*%diag(F_bar),b%*%diag(F_bar)))%*%(diag(1,n) + B%*%D%*%B)%*%cbind(diag(F_bar)%*%B%*%A,diag(F_bar)%*%b)
-
-V = ginv(Matrix1)%*%Matrix3%*%ginv(Matrix2)
 
 # # Kendall's tau variance
 
-Matrix1 = rbind(diag(1,n) - A%*%B,-b)
-Matrix2 = (rbind(A%*%B%*%diag(F_bar),b%*%diag(F_bar)))%*%(diag(1,n) + B%*%D%*%B)%*%(diag(F_bar)%*%B%*%F_bar)
+Matrix1 = rbind(diag(1,n+1) - A%*%B,-b)
+Matrix2 = (rbind(A%*%B%*%diag(as.vector(Fbar)),b%*%diag(as.vector(Fbar))))%*%(diag(1,n+1) + B%*%D%*%B)%*%(diag(as.vector(Fbar))%*%B%*%Fbar)
 
 W_hat = ginv(Matrix1)%*%Matrix2
 
-V_tau = F_bar%*%B%*%V%*%B%*%F_bar+
-        2*F_bar%*%B%*%W_hat+
-        F_bar%*%B%*%diag(F_bar)%*%(diag(1,n)+B%*%D%*%B)%*%diag(F_bar)%*%B%*%F_bar
+V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
+        2*t(Fbar)%*%B%*%W_hat+
+        t(Fbar)%*%B%*%diag(as.vector(Fbar))%*%(diag(1,n+1)+B%*%D%*%B)%*%diag(as.vector(Fbar))%*%B%*%Fbar
 
 
 
@@ -149,7 +141,8 @@ canlifins = canlifins[Sample,]
 c(
 sum((canlifins$UncensoredM == 0) & (canlifins$UncensoredF == 0)), # number of doubly censored couples
 sum((canlifins$UncensoredM != 0) & (canlifins$UncensoredF == 0)), # number of couples where only the woman is censored
-sum((canlifins$UncensoredM == 0) & (canlifins$UncensoredF != 0)) # number of couples where only the man is censored
+sum((canlifins$UncensoredM == 0) & (canlifins$UncensoredF != 0)), # number of couples where only the man is censored
+sum((canlifins$UncensoredM != 0) & (canlifins$UncensoredF != 0)) # number of doubly uncensored couples
 )
 
 # # Estimator 
@@ -165,58 +158,51 @@ canlifins[canlifins$DeathTimeF == 0,"DeathTimeF"] = max(canlifins$DeathTimeF)
 ordre = order(canlifins$DeathTimeM,canlifins$DeathTimeF)
 Z_ordered = cbind(canlifins$DeathTimeM,canlifins$DeathTimeF)[ordre,]
 
-A = matrix(0,ncol=n+1,nrow=n+1)
-A[,n+1] = 1
-A[n+1,] = 1
+del1 = canlifins$UncensoredM 
+del2 = canlifins$UncensoredF
 
-for(i in 1:n){
-  for(k in 1:n){
-    A[i,k] = ifelse((Z_ordered[k,1] >= Z_ordered[i,1]) & (Z_ordered[k,2] >= Z_ordered[i,2]),1,0)
-  }
-}
+xinf=max(Z_ordered[,1],Z_ordered[,2])+1 # CREATING POINT AT INFINITY
+Z1=c(Z_ordered[,1],xinf)
+Z2=c(Z_ordered[,2],xinf)
 
-D = matrix(NA,nrow=n,ncol=n)
+del1=c(del1,1)
+del2=c(del2,1)
+del=del1*del2
 
-for(i in 1:n){
-  for(j in 1:n){
-    D[i,j] = (1-A[i,j])*(1-A[j,i])*(A[i,]%*%A[,j])
-  }
-}
+az1=matrix(rep(Z1,n+1),ncol=n+1)
+az2=matrix(rep(Z2,n+1),ncol=n+1)
+A=(t(az1)>=az1)*(t(az2)>=az2)
+rsumA=apply(A,1,sum)
 
-b = (canlifins$UncensoredM*canlifins$UncensoredF)/(1:n+1)
-B = diag(c(b,1))
+eps=1/(n+1)
 
-c = b/(1-b)
+b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+B=diag(b)
 
-p = rep(NA,n+1)
-p[n+1] = 1/(n+1)
+Id=diag(rep(1,n+1))
+M=rbind(Id-A%*%B,-t(b))
+MMinv=solve(t(M)%*%M)
+Fbar=MMinv%*%b ### <---- THIS IS THE \bar{F} VECTOR
+phat=Fbar[n+1]
 
-for(i in n:1){
-  p[i] = c[i]*sum(A[i,(i+1):(n+1)]*p[(i+1):(n+1)])
-}
+# Variance estimator
 
-F_bar = A%*%p
+D=(1-A)*(1-t(A))*(A%*%t(A))
+bf=b*Fbar
+BF=diag(bf[1:(n+1)])
+S=rbind(A%*%BF,t(bf))
+R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
+U=(t(M)%*%R)%*%M
+V=(MMinv%*%U)%*%MMinv
 
-A = A[-(n+1),-(n+1)]
-B = B[-(n+1),-(n+1)]
-F_bar = F_bar[-(n+1)]
-
-
-# Its covariance matrix
-
-Matrix1 = rbind(diag(1,n) - A%*%B,-b)
-Matrix2 = cbind(t(diag(1,n) - A%*%B),-b)
-Matrix3 = (rbind(A%*%B%*%diag(F_bar),b%*%diag(F_bar)))%*%(diag(1,n) + B%*%D%*%B)%*%cbind(diag(F_bar)%*%B%*%A,diag(F_bar)%*%b)
-
-V = ginv(Matrix1)%*%Matrix3%*%ginv(Matrix2)
 
 # # Kendall's tau variance
 
-Matrix1 = rbind(diag(1,n) - A%*%B,-b)
-Matrix2 = (rbind(A%*%B%*%diag(F_bar),b%*%diag(F_bar)))%*%(diag(1,n) + B%*%D%*%B)%*%(diag(F_bar)%*%B%*%F_bar)
+Matrix1 = rbind(diag(1,n+1) - A%*%B,-b)
+Matrix2 = (rbind(A%*%B%*%diag(as.vector(Fbar)),b%*%diag(as.vector(Fbar))))%*%(diag(1,n+1) + B%*%D%*%B)%*%(diag(as.vector(Fbar))%*%B%*%Fbar)
 
 W_hat = ginv(Matrix1)%*%Matrix2
 
-V_tau = F_bar%*%B%*%V%*%B%*%F_bar+
-  2*F_bar%*%B%*%W_hat+
-  F_bar%*%B%*%diag(F_bar)%*%(diag(1,n)+B%*%D%*%B)%*%diag(F_bar)%*%B%*%F_bar
+V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
+  2*t(Fbar)%*%B%*%W_hat+
+  t(Fbar)%*%B%*%diag(as.vector(Fbar))%*%(diag(1,n+1)+B%*%D%*%B)%*%diag(as.vector(Fbar))%*%B%*%Fbar
