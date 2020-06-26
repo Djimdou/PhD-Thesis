@@ -24,9 +24,6 @@ library(dplyr)
 #################################### USE THIS:####################################
 # For data (Z1, Z2, del1, del2), sample size = n
 
-library(tabulizer)
-library(dplyr)
-
 location = 'C:/Users/djimd/OneDrive/Documents/Concordia - PhD/Thesis/McGilchrist_Aisbett-1991.pdf'
 
 # Extract the table
@@ -83,7 +80,7 @@ Id=diag(rep(1,n+1))
 M=rbind(Id-A%*%B,-t(b))
 MMinv=solve(t(M)%*%M)
 Fbar=MMinv%*%b ### <---- THIS IS THE \bar{F} VECTOR
-phat=Fbar[n+1]
+phat=(solve(A)%*%Fbar)[-n] # weights
 
 # Variance estimator
 
@@ -94,6 +91,29 @@ S=rbind(A%*%BF,t(bf))
 R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
 U=(t(M)%*%R)%*%M
 V=(MMinv%*%U)%*%MMinv
+
+# # Kendall's tau estimate
+
+MyFunc = function(x,y){
+  sum(phat[((x >= Z_ordered[,1])*(y >= Z_ordered[,2]))])
+}
+
+x = unique(Z_ordered[order(Z_ordered[,1]),1])
+y = unique(Z_ordered[order(Z_ordered[,2]),2])
+F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(MyFunc))
+
+#persp(x,y,F_bar_grid)
+#plot_ly(x=x, y=y, z = F_bar_grid, type = 'mesh3d')
+
+#install.packages("akima")
+install.packages("rgl")
+#library(akima)
+library(rgl) # for surface3d
+
+#s = interp(x,y,F_bar_grid)
+surface3d(x[1:10],y[1:10],F_bar_grid[1:10,1:10])
+
+
 
 
 # # Kendall's tau variance
