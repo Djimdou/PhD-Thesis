@@ -3,7 +3,6 @@ library(MASS) # for ginv
 library(dplyr)
 
 
-
 # # #  Numerical application
 
 # # Estimator 
@@ -94,26 +93,36 @@ V=(MMinv%*%U)%*%MMinv
 
 # # Kendall's tau estimate
 
-MyFunc = function(x,y){
-  sum(phat[((x >= Z_ordered[,1])*(y >= Z_ordered[,2]))])
+#PHatFun = function(x,y){
+#  phat[((Z_ordered[,1] >= x)*(Z_ordered[,2] >= y))]
+#}
+
+FBarFun = function(x,y){
+  sum(phat[((Z_ordered[,1] >= x)*(Z_ordered[,2] >= y))])
 }
 
 x = unique(Z_ordered[order(Z_ordered[,1]),1])
 y = unique(Z_ordered[order(Z_ordered[,2]),2])
-F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(MyFunc))
+F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
+#P_hat_grid <- outer(X=x,Y=y, FUN=Vectorize(PHatFun))
+
+#P_hat_grid*F_bar_grid
 
 #persp(x,y,F_bar_grid)
+#library(plotly)
 #plot_ly(x=x, y=y, z = F_bar_grid, type = 'mesh3d')
 
 #install.packages("akima")
-install.packages("rgl")
-#library(akima)
-library(rgl) # for surface3d
+#install.packages("rgl")
+
+#library(akima) # for interp
+#library(rgl) # for surface3d
 
 #s = interp(x,y,F_bar_grid)
-surface3d(x[1:10],y[1:10],F_bar_grid[1:10,1:10])
+#surface3d(x[1:10],y[1:10],F_bar_grid[1:10,1:10])
 
 
+#Tau = sum(diff(c(1,as.vector(t(F_bar_grid))))*as.vector(t(F_bar_grid)))
 
 
 # # Kendall's tau variance
