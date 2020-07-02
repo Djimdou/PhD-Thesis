@@ -101,28 +101,22 @@ FBarFun = function(x,y){
   sum(phat[((Z_ordered[,1] >= x)*(Z_ordered[,2] >= y))])
 }
 
+Fn_func = function(x,y){
+  sum(phat[((Z_ordered[,1] <= x)*(Z_ordered[,2] <= y))])
+}
+
 x = unique(Z_ordered[order(Z_ordered[,1]),1])
 y = unique(Z_ordered[order(Z_ordered[,2]),2])
 F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
-#P_hat_grid <- outer(X=x,Y=y, FUN=Vectorize(PHatFun))
+Fn_grid <- outer(X=x,Y=y, FUN=Vectorize(Fn_func))
 
+#P_hat_grid <- outer(X=x,Y=y, FUN=Vectorize(PHatFun))
 #P_hat_grid*F_bar_grid
 
-#persp(x,y,F_bar_grid)
-#library(plotly)
-#plot_ly(x=x, y=y, z = F_bar_grid, type = 'mesh3d')
+persp(x,y,Fn_grid, theta = 30, phi = 30)
 
-#install.packages("akima")
-#install.packages("rgl")
-
-#library(akima) # for interp
-#library(rgl) # for surface3d
-
-#s = interp(x,y,F_bar_grid)
-#surface3d(x[1:10],y[1:10],F_bar_grid[1:10,1:10])
-
-
-#Tau = sum(diff(c(1,as.vector(t(F_bar_grid))))*as.vector(t(F_bar_grid)))
+Tau = sum(diff(c(as.vector(t(Fn_grid)),1))*as.vector(t(F_bar_grid)))
+#Tau = cor(x=KidneyInfection$T1,y=KidneyInfection$T2,method="kendall")
 
 
 # # Kendall's tau variance
