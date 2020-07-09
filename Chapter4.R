@@ -79,7 +79,7 @@ Id=diag(rep(1,n+1))
 M=rbind(Id-A%*%B,-t(b))
 MMinv=solve(t(M)%*%M)
 Fbar=MMinv%*%b ### <---- THIS IS THE \bar{F} VECTOR
-phat=(solve(A)%*%Fbar)[-n] # weights
+phat=(solve(A)%*%Fbar)[-(n+1)] # weights
 
 # Variance estimator
 
@@ -101,23 +101,23 @@ FBarFun = function(x,y){
   sum(phat[((Z_ordered[,1] >= x)*(Z_ordered[,2] >= y))])
 }
 
-Fn_func = function(x,y){
-  sum(phat[((Z_ordered[,1] <= x)*(Z_ordered[,2] <= y))])
-}
+#Fn_func = function(x,y){
+#  sum(phat[((Z_ordered[,1] <= x)*(Z_ordered[,2] <= y))])
+#}
 
 x = unique(Z_ordered[order(Z_ordered[,1]),1])
 y = unique(Z_ordered[order(Z_ordered[,2]),2])
-F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
+#F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
 Fn_grid <- outer(X=x,Y=y, FUN=Vectorize(Fn_func))
 
 #P_hat_grid <- outer(X=x,Y=y, FUN=Vectorize(PHatFun))
 #P_hat_grid*F_bar_grid
 
-persp(x,y,Fn_grid, theta = 30, phi = 30)
+persp(x,y,F_bar_grid, theta = 30, phi = 30)
 
-Tau = sum(diff(c(as.vector(t(Fn_grid)),1))*as.vector(t(F_bar_grid)))
+#Tau = sum(diff(c(as.vector(t(Fn_grid)),1))*as.vector(t(F_bar_grid)))
 #Tau = cor(x=KidneyInfection$T1,y=KidneyInfection$T2,method="kendall")
-
+Tau = phat %*% Fbar[-(n+1)]
 
 # # Kendall's tau variance
 
@@ -206,7 +206,7 @@ Id=diag(rep(1,n+1))
 M=rbind(Id-A%*%B,-t(b))
 MMinv=solve(t(M)%*%M)
 Fbar=MMinv%*%b ### <---- THIS IS THE \bar{F} VECTOR
-phat=Fbar[n+1]
+phat=(solve(A)%*%Fbar)[-(n+1)] # weights
 
 # Variance estimator
 
@@ -218,6 +218,33 @@ R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
 U=(t(M)%*%R)%*%M
 V=(MMinv%*%U)%*%MMinv
 
+# # Kendall's tau estimate
+
+#PHatFun = function(x,y){
+#  phat[((Z_ordered[,1] >= x)*(Z_ordered[,2] >= y))]
+#}
+
+FBarFun = function(x,y){
+  sum(phat[((Z_ordered[,1] >= x)*(Z_ordered[,2] >= y))])
+}
+
+#Fn_func = function(x,y){
+#  sum(phat[((Z_ordered[,1] <= x)*(Z_ordered[,2] <= y))])
+#}
+
+x = unique(Z_ordered[order(Z_ordered[,1]),1])
+y = unique(Z_ordered[order(Z_ordered[,2]),2])
+#F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
+Fn_grid <- outer(X=x,Y=y, FUN=Vectorize(Fn_func))
+
+#P_hat_grid <- outer(X=x,Y=y, FUN=Vectorize(PHatFun))
+#P_hat_grid*F_bar_grid
+
+persp(x,y,F_bar_grid, theta = 30, phi = 30)
+
+#Tau = sum(diff(c(as.vector(t(Fn_grid)),1))*as.vector(t(F_bar_grid)))
+#Tau = cor(x=KidneyInfection$T1,y=KidneyInfection$T2,method="kendall")
+Tau = phat %*% Fbar[-(n+1)]
 
 # # Kendall's tau variance
 
@@ -229,3 +256,4 @@ W_hat = ginv(Matrix1)%*%Matrix2
 V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
   2*t(Fbar)%*%B%*%W_hat+
   t(Fbar)%*%B%*%diag(as.vector(Fbar))%*%(diag(1,n+1)+B%*%D%*%B)%*%diag(as.vector(Fbar))%*%B%*%Fbar
+
