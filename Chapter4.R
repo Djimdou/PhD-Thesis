@@ -24,6 +24,7 @@ library(dplyr)
 # For data (Z1, Z2, del1, del2), sample size = n
 
 location = 'C:/Users/djimd/OneDrive/Documents/Concordia - PhD/Thesis/McGilchrist_Aisbett-1991.pdf'
+# Data: https://rdrr.io/cran/SurvCorr/man/kidney.html
 
 # Extract the table
 mydata <- extract_tables(file=location,pages=6)
@@ -68,6 +69,8 @@ del=del1*del2
 az1=matrix(rep(Z1,n+1),ncol=n+1)
 az2=matrix(rep(Z2,n+1),ncol=n+1)
 A=(t(az1)>=az1)*(t(az2)>=az2)
+# Because of ties, A may not be quite upper triangular. We need to convert some numbers to 0.
+A[lower.tri(A, diag = FALSE)] = 0
 rsumA=apply(A,1,sum)
 
 eps=1/(n+1)
@@ -107,8 +110,8 @@ FBarFun = function(x,y){
 
 x = unique(Z_ordered[order(Z_ordered[,1]),1])
 y = unique(Z_ordered[order(Z_ordered[,2]),2])
-#F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
-Fn_grid <- outer(X=x,Y=y, FUN=Vectorize(Fn_func))
+F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
+#Fn_grid <- outer(X=x,Y=y, FUN=Vectorize(Fn_func))
 
 #P_hat_grid <- outer(X=x,Y=y, FUN=Vectorize(PHatFun))
 #P_hat_grid*F_bar_grid
@@ -140,49 +143,39 @@ V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
 
 # Link: http://cas.uqam.ca/
 
-#install.packages('xts')
 library(xts)
-#install.packages('sp')
 library(sp)
-#install.packages('zoo')
 library(zoo)
 
-install.packages("CASdatasets", repos = "http://cas.uqam.ca/pub/R/", type="source")
+#install.packages("CASdatasets", repos = "http://cas.uqam.ca/pub/R/", type="source")
 library(CASdatasets)
 data(canlifins) # load the dataset
 # 14,889 contracts where one annuitant is male and the other female
 
 #write.csv(canlifins,file="C:/Users/djimd/OneDrive/Documents/Concordia - PhD/Thesis/canlifins.csv",row.names = FALSE)
 
-canlifins$UncensoredM = as.integer((canlifins$AnnuityExpiredM >= canlifins$DeathTimeM) & (canlifins$DeathTimeM > 0))
-canlifins$UncensoredF = as.integer((canlifins$AnnuityExpiredM >= canlifins$DeathTimeF) & (canlifins$DeathTimeF > 0))
-
-Sample = sample(1:dim(canlifins)[1],size = 3000)
-#AtLeastOneCensored = which((canlifins$AnnuityExpiredM > canlifins$DeathTimeM)|(canlifins$AnnuityExpiredM > canlifins$DeathTimeF))
+Sample = sample(1:dim(canlifins)[1],size = 100)
 canlifins = canlifins[Sample,]
 
 c(
-sum((canlifins$UncensoredM == 0) & (canlifins$UncensoredF == 0)), # number of doubly censored couples
-sum((canlifins$UncensoredM != 0) & (canlifins$UncensoredF == 0)), # number of couples where only the woman is censored
-sum((canlifins$UncensoredM == 0) & (canlifins$UncensoredF != 0)), # number of couples where only the man is censored
-sum((canlifins$UncensoredM != 0) & (canlifins$UncensoredF != 0)) # number of doubly uncensored couples
+sum((canlifins$DeathTimeF == 0) & (canlifins$DeathTimeF == 0)), # number of doubly censored couples
+sum((canlifins$DeathTimeM > 0) & (canlifins$DeathTimeF == 0)), # number of couples where only the woman is censored
+sum((canlifins$DeathTimeM == 0) & (canlifins$DeathTimeF > 0)), # number of couples where only the man is censored
+sum((canlifins$DeathTimeM > 0) & (canlifins$DeathTimeF > 0)) # number of doubly uncensored couples
 )
 
 # # Estimator 
 
 n = dim(canlifins)[1]
 
-#canlifins$UncensoredM = 1-as.integer(canlifins$DeathTimeM==0)
-#canlifins$UncensoredF = 1-as.integer(canlifins$DeathTimeF==0)
-
-canlifins[canlifins$DeathTimeM == 0,"DeathTimeM"] = max(canlifins$DeathTimeM)
-canlifins[canlifins$DeathTimeF == 0,"DeathTimeF"] = max(canlifins$DeathTimeF)
+canlifins[canlifins$DeathTimeM == 0,"DeathTimeM"] = max(canlifins$AnnuityExpiredM)
+canlifins[canlifins$DeathTimeF == 0,"DeathTimeF"] = max(canlifins$AnnuityExpiredM)
 
 ordre = order(canlifins$DeathTimeM,canlifins$DeathTimeF)
 Z_ordered = cbind(canlifins$DeathTimeM,canlifins$DeathTimeF)[ordre,]
 
-del1 = canlifins$UncensoredM 
-del2 = canlifins$UncensoredF
+del1 = as.integer(canlifins$DeathTimeM > 0) 
+del2 = as.integer(canlifins$DeathTimeF > 0)
 
 xinf=max(Z_ordered[,1],Z_ordered[,2])+1 # CREATING POINT AT INFINITY
 Z1=c(Z_ordered[,1],xinf)
@@ -195,6 +188,8 @@ del=del1*del2
 az1=matrix(rep(Z1,n+1),ncol=n+1)
 az2=matrix(rep(Z2,n+1),ncol=n+1)
 A=(t(az1)>=az1)*(t(az2)>=az2)
+# Because of ties, A may not be quite upper triangular. We need to convert some numbers to 0.
+A[lower.tri(A, diag = FALSE)] = 0
 rsumA=apply(A,1,sum)
 
 eps=1/(n+1)
@@ -234,8 +229,8 @@ FBarFun = function(x,y){
 
 x = unique(Z_ordered[order(Z_ordered[,1]),1])
 y = unique(Z_ordered[order(Z_ordered[,2]),2])
-#F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
-Fn_grid <- outer(X=x,Y=y, FUN=Vectorize(Fn_func))
+F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
+#Fn_grid <- outer(X=x,Y=y, FUN=Vectorize(Fn_func))
 
 #P_hat_grid <- outer(X=x,Y=y, FUN=Vectorize(PHatFun))
 #P_hat_grid*F_bar_grid
