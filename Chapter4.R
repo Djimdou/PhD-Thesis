@@ -96,31 +96,19 @@ V=(MMinv%*%U)%*%MMinv
 
 # # Kendall's tau estimate
 
-#PHatFun = function(x,y){
-#  phat[((Z_ordered[,1] >= x)*(Z_ordered[,2] >= y))]
-#}
-
 FBarFun = function(x,y){
   sum(phat[((Z_ordered[,1] >= x)*(Z_ordered[,2] >= y))])
 }
 
-#Fn_func = function(x,y){
-#  sum(phat[((Z_ordered[,1] <= x)*(Z_ordered[,2] <= y))])
-#}
-
 x = unique(Z_ordered[order(Z_ordered[,1]),1])
 y = unique(Z_ordered[order(Z_ordered[,2]),2])
 F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
-#Fn_grid <- outer(X=x,Y=y, FUN=Vectorize(Fn_func))
-
-#P_hat_grid <- outer(X=x,Y=y, FUN=Vectorize(PHatFun))
-#P_hat_grid*F_bar_grid
 
 persp(x,y,F_bar_grid, theta = 30, phi = 30)
 
 #Tau = sum(diff(c(as.vector(t(Fn_grid)),1))*as.vector(t(F_bar_grid)))
 #Tau = cor(x=KidneyInfection$T1,y=KidneyInfection$T2,method="kendall")
-Tau = phat %*% Fbar[-(n+1)]
+Tau = 4*(phat %*% Fbar[-(n+1)])-1
 
 # # Kendall's tau variance
 
@@ -154,7 +142,7 @@ data(canlifins) # load the dataset
 
 #write.csv(canlifins,file="C:/Users/djimd/OneDrive/Documents/Concordia - PhD/Thesis/canlifins.csv",row.names = FALSE)
 
-Sample = sample(1:dim(canlifins)[1],size = 100)
+Sample = sample(1:dim(canlifins)[1],size = 200)
 canlifins = canlifins[Sample,]
 
 c(
@@ -215,31 +203,19 @@ V=(MMinv%*%U)%*%MMinv
 
 # # Kendall's tau estimate
 
-#PHatFun = function(x,y){
-#  phat[((Z_ordered[,1] >= x)*(Z_ordered[,2] >= y))]
-#}
-
 FBarFun = function(x,y){
   sum(phat[((Z_ordered[,1] >= x)*(Z_ordered[,2] >= y))])
 }
 
-#Fn_func = function(x,y){
-#  sum(phat[((Z_ordered[,1] <= x)*(Z_ordered[,2] <= y))])
-#}
-
 x = unique(Z_ordered[order(Z_ordered[,1]),1])
 y = unique(Z_ordered[order(Z_ordered[,2]),2])
 F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
-#Fn_grid <- outer(X=x,Y=y, FUN=Vectorize(Fn_func))
-
-#P_hat_grid <- outer(X=x,Y=y, FUN=Vectorize(PHatFun))
-#P_hat_grid*F_bar_grid
 
 persp(x,y,F_bar_grid, theta = 30, phi = 30)
 
 #Tau = sum(diff(c(as.vector(t(Fn_grid)),1))*as.vector(t(F_bar_grid)))
 #Tau = cor(x=KidneyInfection$T1,y=KidneyInfection$T2,method="kendall")
-Tau = phat %*% Fbar[-(n+1)]
+Tau = 4*(phat %*% Fbar[-(n+1)])-1
 
 # # Kendall's tau variance
 
