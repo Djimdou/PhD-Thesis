@@ -1,11 +1,102 @@
 library(tabulizer)
 library(MASS) # for ginv
 library(dplyr)
+library(copula) # for claytonCopula
 
 
 # # #  Numerical application
 
+# Function: copula::rCopula
+
+n = 1000
+
+# Uniform variables with a Clayton copula joint distribution
+clayton <- claytonCopula(param=2)
+U <- rCopula(n=n, clayton)[,1]
+V <- rCopula(n=n, clayton)[,2]
+
+# Weibull distribution for X and Y
+alpha = 10 # Weibull distribution shape parameter
+beta = 1.7 # Weibull distribution scale parameter
+
+X = beta*(-log(U))**(1/alpha)
+Y = beta*(-log(V))**(1/alpha)
+
+# Censoring variable
+
+lambda = 1/4 # check
+C = rexp(n=n,rate = lambda)
+
 # # Estimator 
+
+ordre = order(X,Y)
+Z_ordered = cbind(X,Y)[ordre,]
+
+del1 = as.integer(X >= C)
+del2 = as.integer(Y >= C)
+
+xinf=max(Z_ordered[,1],Z_ordered[,2])+1 # CREATING POINT AT INFINITY
+Z1=c(Z_ordered[,1],xinf)
+Z2=c(Z_ordered[,2],xinf)
+
+del1=c(del1,1)
+del2=c(del2,1)
+del=del1*del2
+
+az1=matrix(rep(Z1,n+1),ncol=n+1)
+az2=matrix(rep(Z2,n+1),ncol=n+1)
+A=(t(az1)>=az1)*(t(az2)>=az2)
+# Because of ties, A may not be quite upper triangular. We need to convert some numbers to 0.
+A[lower.tri(A, diag = FALSE)] = 0
+rsumA=apply(A,1,sum)
+
+eps=1/(n+1)
+
+b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+B=diag(b)
+
+Id=diag(rep(1,n+1))
+M=rbind(Id-A%*%B,-t(b))
+MMinv=solve(t(M)%*%M)
+Fbar=MMinv%*%b ### <---- THIS IS THE \bar{F} VECTOR
+phat=(solve(A)%*%Fbar)[-(n+1)] # weights
+
+# Variance estimator
+
+D=(1-A)*(1-t(A))*(A%*%t(A))
+bf=b*Fbar
+BF=diag(bf[1:(n+1)])
+S=rbind(A%*%BF,t(bf))
+R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
+U=(t(M)%*%R)%*%M
+V=(MMinv%*%U)%*%MMinv
+
+# # Kendall's tau estimate
+
+FBarFun = function(x,y){
+  sum(phat[((Z_ordered[,1] >= x)*(Z_ordered[,2] >= y))])
+}
+
+x = unique(Z_ordered[order(Z_ordered[,1]),1])
+y = unique(Z_ordered[order(Z_ordered[,2]),2])
+F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
+
+persp(x,y,F_bar_grid, theta = 30, phi = 30)
+
+Tau = 4*(phat %*% Fbar[-(n+1)])-1
+
+# # Kendall's tau variance
+
+Matrix1 = rbind(diag(1,n+1) - A%*%B,-b)
+Matrix2 = (rbind(A%*%B%*%diag(as.vector(Fbar)),b%*%diag(as.vector(Fbar))))%*%(diag(1,n+1) + B%*%D%*%B)%*%(diag(as.vector(Fbar))%*%B%*%Fbar)
+
+W_hat = ginv(Matrix1)%*%Matrix2
+
+V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
+  2*t(Fbar)%*%B%*%W_hat+
+  t(Fbar)%*%B%*%diag(as.vector(Fbar))%*%(diag(1,n+1)+B%*%D%*%B)%*%diag(as.vector(Fbar))%*%B%*%Fbar
+
+
 
 
 
@@ -53,8 +144,6 @@ n = dim(KidneyInfection)[1]
 ordre = order(KidneyInfection$T1,KidneyInfection$T2)#
 Z_ordered = cbind(KidneyInfection$T1,KidneyInfection$T2)[ordre,]
 
-#Z1 = Z_ordered[,1]
-#Z2 = Z_ordered[,2]
 del1 = KidneyInfection$uncensored1 
 del2 = KidneyInfection$uncensored2
 
