@@ -5,9 +5,9 @@
 
 library(copula) # for claytonCopula
 
-n = 1000
+n = 100
 
-W = seq(from=0.01,to=1,by=0.001)
+W = seq(from=0.1,to=1,by=0.01)
 
 # # Simulating values from Archimedean copulas
 
@@ -74,7 +74,8 @@ for(i in 1:n){
 # # Empirical distribution
 
 Kn = ecdf(V)
-Vn = unique(V[order(V)])
+#Vn = unique(V[order(V)])
+Vn = V[order(V)]
 
 # # # Estimator 1: differential equation
 
@@ -102,16 +103,26 @@ for(i in 1:length(W)){
 
 Ylim = range(c(Phi_est,Phi_true),na.rm = TRUE)
 
-plot(W,Phi_est,type='l',col='red') #,ylim=Ylim
+plot(W,Phi_est,type='l',col='red',ylim=Ylim) #
 lines(W,Phi_true,col='blue')
 
 # # # Estimator 2: integral equation
 
-h = rep(NA,times=length(Vn))
-h[length(Vn)] = 1 
+h = rep(NA,times=n)
+h[n] = 1 
 
 for(i in (length(Vn)-1):1){
-  h[i] = (1/(n*Kn(Vn[i])-i))*sum(h[(i+1):length(Vn)])
+  h[i] = (1/(n*Kn(i/n)-i))*sum(h[(i+1):length(Vn)])
 }
 
-Phi = -cumsum(diff(h))
+Phi_est = rep(NA,times=length(W))
+
+for(i in 1:length(W)){
+  j0 = which.max((1:n/n <= W[i]) & (W[i] < (1:n+1)/n))
+  Phi_est[i] = mean(h[(j0+1):n])*log(abs((Kn(i/n)-1)/(Kn(i/n)-W[i])))
+}
+
+Ylim = range(c(Phi_est,Phi_true),na.rm = TRUE)
+
+plot(W,Phi_est,type='l',col='red',ylim=Ylim) #
+lines(W,Phi_true,col='blue')
