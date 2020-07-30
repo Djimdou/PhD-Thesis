@@ -118,9 +118,15 @@ for(i in (length(Vn)-1):1){
 Phi_est = rep(NA,times=length(W))
 
 for(i in 1:length(W)){
-  j0 = which.max((1:n/n <= W[i]) & (W[i] < (1:n+1)/n))
-  Phi_est[i] = mean(h[(j0+1):n])*log(abs((Kn(i/n)-1)/(Kn(i/n)-W[i])))
+  if(W[i] < 1/n){
+    j0 = 0
+  }else{
+    j0 = which.max((1:n/n <= W[i]) & (W[i] < (1:n+1)/n))
+  }
+  Phi_est[i] = (sum(h[(j0+1):n])/n)*log(abs((Kn(i/n)-1)/(Kn(i/n)-W[i])))
 }
+
+Phi_est[is.infinite(Phi_est)] = NA
 
 Ylim = range(c(Phi_est,Phi_true),na.rm = TRUE)
 
