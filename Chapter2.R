@@ -7,7 +7,7 @@ library(copula) # for claytonCopula
 
 n = 100
 
-W = seq(from=0.1,to=1,by=0.01)
+W = seq(from=1/n,to=1,by=0.01)
 
 # # Simulating values from Archimedean copulas
 
@@ -111,24 +111,22 @@ lines(W,Phi_true,col='blue')
 h = rep(NA,times=n)
 h[n] = 1 
 
-for(i in (length(Vn)-1):1){
-  h[i] = (1/(n*Kn(i/n)-i))*sum(h[(i+1):length(Vn)])
+for(i in (n-1):1){
+  if(Kn(i/n)-i/n > 0){
+  h[i] = (1/(n*Kn(i/n)-i))*sum(h[(i+1):n])
+  }else{
+    h[i] = h[i+1]
+  }
 }
 
 Phi_est = rep(NA,times=length(W))
 
 for(i in 1:length(W)){
-  if(W[i] < 1/n){
-    j0 = 0
-  }else{
-    j0 = which.max((1:n/n <= W[i]) & (W[i] < (1:n+1)/n))
-  }
-  Phi_est[i] = (sum(h[(j0+1):n])/n)*log(abs((Kn(i/n)-1)/(Kn(i/n)-W[i])))
+  j0 = which.max((1:n/n <= W[i]) & (W[i] < (1:n+1)/n))
+  Phi_est[i] = h[j0]*(1-W[i])+((n/2)*(1-W[i]**2)-i*(1-W[i]))*(h[j0+1]-h[j0])
 }
-
-Phi_est[is.infinite(Phi_est)] = NA
 
 Ylim = range(c(Phi_est,Phi_true),na.rm = TRUE)
 
-plot(W,Phi_est,type='l',col='red',ylim=Ylim) #
+plot(W,Phi_est,type='l',col='red',ylim=Ylim)
 lines(W,Phi_true,col='blue')
