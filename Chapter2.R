@@ -5,9 +5,9 @@
 
 library(copula) # for claytonCopula
 
-n = 100
+n = 1000
 
-W = seq(from=1/n,to=1,by=0.01)
+W = 1:n/n#seq(from=1/n,to=1,by=0.01)
 
 # # Simulating values from Archimedean copulas
 
@@ -74,7 +74,6 @@ for(i in 1:n){
 # # Empirical distribution
 
 Kn = ecdf(V)
-#Vn = unique(V[order(V)])
 Vn = V[order(V)]
 
 # # # Estimator 1: differential equation
@@ -119,12 +118,28 @@ for(i in (n-1):1){
   }
 }
 
-Phi_est = rep(NA,times=length(W))
+#Hn = approx(x=1:n/n, y=h, xout=W, method="linear", ties = mean)$y # for graphics
 
-for(i in 1:length(W)){
-  j0 = which.max((1:n/n <= W[i]) & (W[i] < (1:n+1)/n))
-  Phi_est[i] = h[j0]*(1-W[i])+((n/2)*(1-W[i]**2)-i*(1-W[i]))*(h[j0+1]-h[j0])
-}
+#Hn_fun = approxfun(x=1:n/n, y=h, method="linear", ties = mean)
+
+# plot(W[10:length(W)],Hn[10:length(W)],type='l',col='red')
+# lines(W[10:length(W)],(1/W)[10:length(W)],col='blue')
+# lines(h,col='green')
+
+#Phi_est = rep(NA,times=length(W))
+#Phi_est_2 = rep(NA,times=length(W))
+
+# Linear interpolation
+#for(i in 1:(length(W)-1)){
+#  j0 = which.max(((1:n)/n <= W[i]) & (W[i] < (1:n+1)/n))
+#  Phi_est[i] = (1-W[i])*(h[j0]+((n/2)*(1+W[i])-i)*(h[j0+1]-h[j0]))
+#  Phi_est_2[i] = integrate(Hn_fun,lower=W[i],upper=1, subdivisions=2000)$value
+#}
+
+# Step interpolation
+#Phi_est= rep(NA,times=length(W))
+
+Phi_est = (sum(h) - cumsum(c(0,h[-n])))/n
 
 Ylim = range(c(Phi_est,Phi_true),na.rm = TRUE)
 
