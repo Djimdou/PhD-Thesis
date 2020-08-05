@@ -8,7 +8,7 @@ library(copula) # for claytonCopula
 
 # Function: copula::rCopula
 
-n = 1000
+n = 200
 
 # Uniform variables with a Clayton copula joint distribution
 clayton <- claytonCopula(param=2)
@@ -32,8 +32,8 @@ C = rexp(n=n,rate = lambda)
 ordre = order(X,Y)
 Z_ordered = cbind(X,Y)[ordre,]
 
-del1 = as.integer(X >= C)
-del2 = as.integer(Y >= C)
+del1 = as.integer(X <= C)
+del2 = as.integer(Y <= C)
 
 xinf=max(Z_ordered[,1],Z_ordered[,2])+1 # CREATING POINT AT INFINITY
 Z1=c(Z_ordered[,1],xinf)
@@ -195,8 +195,6 @@ F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
 
 persp(x,y,F_bar_grid, theta = 30, phi = 30)
 
-#Tau = sum(diff(c(as.vector(t(Fn_grid)),1))*as.vector(t(F_bar_grid)))
-#Tau = cor(x=KidneyInfection$T1,y=KidneyInfection$T2,method="kendall")
 Tau = 4*(phat %*% Fbar[-(n+1)])-1
 
 # # Kendall's tau variance
@@ -220,9 +218,9 @@ V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
 
 # Link: http://cas.uqam.ca/
 
-library(xts)
-library(sp)
-library(zoo)
+#library(xts)
+#library(sp)
+#library(zoo)
 
 #install.packages("CASdatasets", repos = "http://cas.uqam.ca/pub/R/", type="source")
 library(CASdatasets)
@@ -231,7 +229,7 @@ data(canlifins) # load the dataset
 
 #write.csv(canlifins,file="C:/Users/djimd/OneDrive/Documents/Concordia - PhD/Thesis/canlifins.csv",row.names = FALSE)
 
-Sample = sample(1:dim(canlifins)[1],size = 200)
+Sample = sample(1:dim(canlifins)[1],size = 500)
 canlifins = canlifins[Sample,]
 
 c(
@@ -302,8 +300,6 @@ F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
 
 persp(x,y,F_bar_grid, theta = 30, phi = 30)
 
-#Tau = sum(diff(c(as.vector(t(Fn_grid)),1))*as.vector(t(F_bar_grid)))
-#Tau = cor(x=KidneyInfection$T1,y=KidneyInfection$T2,method="kendall")
 Tau = 4*(phat %*% Fbar[-(n+1)])-1
 
 # # Kendall's tau variance
@@ -317,3 +313,109 @@ V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
   2*t(Fbar)%*%B%*%W_hat+
   t(Fbar)%*%B%*%diag(as.vector(Fbar))%*%(diag(1,n+1)+B%*%D%*%B)%*%diag(as.vector(Fbar))%*%B%*%Fbar
 
+
+# # #  Pseudo-likelihood maximization: variance
+
+n = 1000
+
+# Uniform variables with a Clayton copula joint distribution
+clayton <- claytonCopula(param=2)
+U <- rCopula(n=n, clayton)[,1]
+V <- rCopula(n=n, clayton)[,2]
+
+# Weibull distribution for X and Y
+alpha = 10 # Weibull distribution shape parameter
+beta = 1.7 # Weibull distribution scale parameter
+
+X = beta*(-log(U))**(1/alpha)
+Y = beta*(-log(V))**(1/alpha)
+
+# Censoring variable
+
+lambda = 1/4 # check
+C = rexp(n=n,rate = lambda)
+
+ordre = order(X,Y)
+Z_ordered = cbind(X,Y)[ordre,]
+
+del1 = as.integer(X <= C)
+del2 = as.integer(Y <= C)
+
+xinf=max(Z_ordered[,1],Z_ordered[,2])+1 # point at infinity
+Z1=c(Z_ordered[,1],xinf)
+Z2=c(Z_ordered[,2],xinf)
+
+del1=c(del1,1)
+del2=c(del2,1)
+del=del1*del2
+
+# # MLE of theta
+
+# Fn1
+
+az1=matrix(rep(Z1,n+1),ncol=n+1)
+az2=matrix(rep(0,(n+1)**2),ncol=n+1)
+A=(t(az1)>=az1)*(t(az2)>=az2)
+
+A[lower.tri(A, diag = FALSE)] = 0
+rsumA=apply(A,1,sum)
+
+eps=1/(n+1)
+
+b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+B=diag(b)
+
+Id=diag(rep(1,n+1))
+M=rbind(Id-A%*%B,-t(b))
+MMinv=solve(t(M)%*%M)
+Fn1=1-MMinv%*%b
+Fn1=Fn1[-(n+1)]
+
+# Fn2
+
+az1=matrix(rep(0,(n+1)**2),ncol=n+1)
+az2=matrix(rep(Z2,n+1),ncol=n+1)
+A=(t(az1)>=az1)*(t(az2)>=az2)
+
+A[lower.tri(A, diag = FALSE)] = 0
+rsumA=apply(A,1,sum)
+
+eps=1/(n+1)
+
+b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+B=diag(b)
+
+Id=diag(rep(1,n+1))
+M=rbind(Id-A%*%B,-t(b))
+MMinv=solve(t(M)%*%M)
+Fn2=1-MMinv%*%b
+Fn2=Fn2[-(n+1)]
+
+
+DiffLogL = function(x){
+  sum(phat*(1/(x+1)-log(Fn1*Fn2))+(1/x**2)*log(Fn1**(-x)+Fn2**(-x)-1)-(2+1/x)*(-Fn1**(-x)*log(Fn1)-Fn2**(-x)*log(Fn2))/(Fn1**(-x)+Fn2**(-x)-1))
+}
+
+theta_hat = optimise(f=DiffLogL,interval=c(0,10),maximum = TRUE)
+
+# # Estimator 
+
+az1=matrix(rep(Z1,n+1),ncol=n+1)
+az2=matrix(rep(Z2,n+1),ncol=n+1)
+A=(t(az1)>=az1)*(t(az2)>=az2)
+# Because of ties, A may not be quite upper triangular. We need to convert some numbers to 0.
+A[lower.tri(A, diag = FALSE)] = 0
+rsumA=apply(A,1,sum)
+
+eps=1/(n+1)
+
+b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+B=diag(b)
+
+Id=diag(rep(1,n+1))
+M=rbind(Id-A%*%B,-t(b))
+MMinv=solve(t(M)%*%M)
+Fbar=MMinv%*%b ### <---- THIS IS THE \bar{F} VECTOR
+phat=(solve(A)%*%Fbar)[-(n+1)] # weights
+
+# # Variance of An
