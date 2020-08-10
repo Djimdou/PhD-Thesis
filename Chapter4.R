@@ -8,7 +8,7 @@ library(copula) # for claytonCopula
 
 # Function: copula::rCopula
 
-n = 200
+n = 5
 
 # Uniform variables with a Clayton copula joint distribution
 clayton <- claytonCopula(param=2)
@@ -382,8 +382,7 @@ for(i in 1:length(n_vect)){
   # Fn1
   
   az1=matrix(rep(Z1,n+1),ncol=n+1)
-  az2=matrix(rep(0,(n+1)**2),ncol=n+1)
-  A=(t(az1)>=az1)*(t(az2)>=az2)
+  A=t(az1)>=az1
   
   A[lower.tri(A, diag = FALSE)] = 0
   rsumA=apply(A,1,sum)
@@ -402,9 +401,8 @@ for(i in 1:length(n_vect)){
   
   # Fn2
   
-  az1=matrix(rep(0,(n+1)**2),ncol=n+1)
   az2=matrix(rep(Z2,n+1),ncol=n+1)
-  A=(t(az1)>=az1)*(t(az2)>=az2)
+  A=t(az2)>=az2
   
   A[lower.tri(A, diag = FALSE)] = 0
   rsumA=apply(A,1,sum)
@@ -432,3 +430,62 @@ for(i in 1:length(n_vect)){
 
 
 # # Variance of An
+
+# VStar
+
+az1=matrix(rep(Z1,n+1),ncol=n+1)
+A=(t(az1)>=az1)
+A[lower.tri(A, diag = FALSE)] = 0
+rsumA=apply(A,1,sum)
+
+eps=1/(n+1)
+
+b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+B=diag(b)
+
+Id=diag(rep(1,n+1))
+M=rbind(Id-A%*%B,-t(b))
+MMinv=solve(t(M)%*%M)
+Fbar=MMinv%*%b ### <---- THIS IS THE \bar{F} VECTOR
+phat=(solve(A)%*%Fbar)[-(n+1)] # weights
+
+D=(1-A)*(1-t(A))*(A%*%t(A))
+bf=b*Fbar
+BF=diag(bf[1:(n+1)])
+S=rbind(A%*%BF,t(bf))
+R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
+U=(t(M)%*%R)%*%M
+V_z0=(MMinv%*%U)%*%MMinv
+
+az2=matrix(rep(Z2,n+1),ncol=n+1)
+A=(t(az2)>=az2)
+A[lower.tri(A, diag = FALSE)] = 0
+rsumA=apply(A,1,sum)
+
+b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+B=diag(b)
+
+M=rbind(Id-A%*%B,-t(b))
+MMinv=solve(t(M)%*%M)
+Fbar=MMinv%*%b ### <---- THIS IS THE \bar{F} VECTOR
+phat=(solve(A)%*%Fbar)[-(n+1)] # weights
+
+D=(1-A)*(1-t(A))*(A%*%t(A))
+bf=b*Fbar
+BF=diag(bf[1:(n+1)])
+S=rbind(A%*%BF,t(bf))
+R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
+U=(t(M)%*%R)%*%M
+V_0z=(MMinv%*%U)%*%MMinv
+
+Diff1Phi  = -1/Fn1-(1/theta_hat[i])*(Fn1**(-theta_hat[i]-1)/(Fn1**(-theta_hat[i])+Fn2**(-theta_hat[i])-1))+
+  (2+1/theta_hat[i])*Fn1**(-theta_hat[i]-1)*((Fn1**(-theta_hat[i])+Fn2**(-theta_hat[i])-1)*(-theta_hat[i]*log(Fn1)+1)+
+  theta_hat[i]*Fn1**(-theta_hat[i])*log(Fn1))/(Fn1**(-theta_hat[i])+Fn2**(-theta_hat[i])-1)**2
+
+Diff2Phi  = -1/Fn2-(1/theta_hat[i])*(Fn2**(-theta_hat[i]-1)/(Fn1**(-theta_hat[i])+Fn2**(-theta_hat[i])-1))+
+  (2+1/theta_hat[i])*Fn1**(-theta_hat[i]-1)*((Fn1**(-theta_hat[i])+Fn2**(-theta_hat[i])-1)*(-theta_hat[i]*log(Fn2)+1)+
+                                               theta_hat[i]*Fn1**(-theta_hat[i])*log(Fn2))/(Fn1**(-theta_hat[i])+Fn2**(-theta_hat[i])-1)**2
+
+VStar = Diff1Phi*V_z0[1:n,1:n] + Diff2Phi*V_0z[1:n,1:n]
+
+
