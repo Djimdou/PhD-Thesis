@@ -4,44 +4,56 @@ library(dplyr)
 library(copula) # for claytonCopula
 
 
+FunZDel = function(n,theta=2,lambda = 1/4){
+  
+  # Uniform variables with a Clayton copula joint distribution
+  
+  clayton <- claytonCopula(param=theta)
+  U <- rCopula(n=n, clayton)[,1]
+  V <- rCopula(n=n, clayton)[,2]
+  
+  # Weibull distribution for X and Y
+  alpha = 10 # Weibull distribution shape parameter
+  beta = 1.7 # Weibull distribution scale parameter
+  
+  X = beta*(-log(U))**(1/alpha)
+  Y = beta*(-log(V))**(1/alpha)
+  
+  # Censoring variable
+
+  C = rexp(n=n,rate = lambda)
+  
+  # Observations
+  
+  ordre = order(X,Y)
+  Z_ordered = cbind(X,Y)[ordre,]
+  
+  xinf=max(Z_ordered[,1],Z_ordered[,2])+1 # CREATING POINT AT INFINITY
+  Z1=c(Z_ordered[,1],xinf)
+  Z2=c(Z_ordered[,2],xinf)
+  
+  del1 = as.integer(X <= C)
+  del2 = as.integer(Y <= C)
+  
+  del1=c(del1,1)
+  del2=c(del2,1)
+  del=del1*del2
+  
+  return(list(Z1,Z2,del))
+}
+
+
 # # #  Numerical application
 
 # Function: copula::rCopula
 
 n = 5
 
-# Uniform variables with a Clayton copula joint distribution
-clayton <- claytonCopula(param=2)
-U <- rCopula(n=n, clayton)[,1]
-V <- rCopula(n=n, clayton)[,2]
-
-# Weibull distribution for X and Y
-alpha = 10 # Weibull distribution shape parameter
-beta = 1.7 # Weibull distribution scale parameter
-
-X = beta*(-log(U))**(1/alpha)
-Y = beta*(-log(V))**(1/alpha)
-
-# Censoring variable
-
-lambda = 1/4 # check
-C = rexp(n=n,rate = lambda)
-
 # # Estimator 
 
-ordre = order(X,Y)
-Z_ordered = cbind(X,Y)[ordre,]
-
-del1 = as.integer(X <= C)
-del2 = as.integer(Y <= C)
-
-xinf=max(Z_ordered[,1],Z_ordered[,2])+1 # CREATING POINT AT INFINITY
-Z1=c(Z_ordered[,1],xinf)
-Z2=c(Z_ordered[,2],xinf)
-
-del1=c(del1,1)
-del2=c(del2,1)
-del=del1*del2
+Z1 = FunZDel(n=n)[[1]]
+Z2 = FunZDel(n=n)[[2]]
+del = FunZDel(n=n)[[3]]
 
 az1=matrix(rep(Z1,n+1),ncol=n+1)
 az2=matrix(rep(Z2,n+1),ncol=n+1)
@@ -329,27 +341,9 @@ beta = 1.7 # Weibull distribution scale parameter
 for(i in 1:length(n_vect)){
   
   n = n_vect[i]
-  # Uniform variables with a Clayton copula joint distribution
-  clayton <- claytonCopula(param=2)
-  U <- rCopula(n=n, clayton)[,1]
-  V <- rCopula(n=n, clayton)[,2]
-  
-  # Weibull distribution for X and Y
-
-  X = beta*(-log(U))**(1/alpha)
-  Y = beta*(-log(V))**(1/alpha)
-  
-  # Censoring variable
-  
-  C = rexp(n=n,rate = lambda)
-  
-  # # Estimator
-  
-  ordre = order(X,Y)
-  Z_ordered = cbind(X,Y)[ordre,]
-  
-  del1 = as.integer(X <= C)
-  del2 = as.integer(Y <= C)
+  Z1 = FunZDel(n=n)[[1]]
+  Z2 = FunZDel(n=n)[[2]]
+  del = FunZDel(n=n)[[3]]
   
   xinf=max(Z_ordered[,1],Z_ordered[,2])+1 # point at infinity
   Z1=c(Z_ordered[,1],xinf)
