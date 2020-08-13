@@ -345,14 +345,6 @@ for(i in 1:length(n_vect)){
   Z2 = FunZDel(n=n)[[2]]
   del = FunZDel(n=n)[[3]]
   
-  xinf=max(Z_ordered[,1],Z_ordered[,2])+1 # point at infinity
-  Z1=c(Z_ordered[,1],xinf)
-  Z2=c(Z_ordered[,2],xinf)
-  
-  del1=c(del1,1)
-  del2=c(del2,1)
-  del=del1*del2
-  
   az1=matrix(rep(Z1,n+1),ncol=n+1)
   az2=matrix(rep(Z2,n+1),ncol=n+1)
   A=(t(az1)>=az1)*(t(az2)>=az2)
@@ -387,7 +379,6 @@ for(i in 1:length(n_vect)){
   M=rbind(Id-A%*%B,-t(b))
   MMinv=solve(t(M)%*%M)
   Fn1= 1-MMinv%*%b # 1-round((MMinv%*%b),digits = 10)# avoiding floating points # 1-MMinv%*%b
-  #Fn1=Fn1[-(n+1)]
   Fn1[Fn1<=10**(-5)]=min(Fn1[Fn1>=10**(-5)])
   
   # Fn2
@@ -403,8 +394,7 @@ for(i in 1:length(n_vect)){
   
   M=rbind(Id-A%*%B,-t(b))
   MMinv=solve(t(M)%*%M)
-  Fn2=1-MMinv%*%b # 1-round((MMinv%*%b),digits = 10)
-  #Fn2=Fn2[-(n+1)]
+  Fn2=1-MMinv%*%b
   Fn2[Fn2<=10**(-5)]=min(Fn2[Fn2>=10**(-5)])
   
   # Log-pseudo-likelihood function
@@ -419,9 +409,9 @@ for(i in 1:length(n_vect)){
 
 # # Variance of An
 
-# Psi
+# Phi
 
-Psi = 1/(theta_hat[i]+1)-log(Fn1*Fn2)+(1/theta_hat[i]**2)*log(Fn1**(-theta_hat[i])+Fn2**(-theta_hat[i])-1)-
+Phi = 1/(theta_hat[i]+1)-log(Fn1*Fn2)+(1/theta_hat[i]**2)*log(Fn1**(-theta_hat[i])+Fn2**(-theta_hat[i])-1)-
   (2+1/theta_hat[i])*(-Fn1**(-theta_hat[i])*log(Fn1)-Fn2**(-theta_hat[i])*log(Fn2))/(Fn1**(-theta_hat[i])+Fn2**(-theta_hat[i])-1)
 
 # VStar
@@ -502,10 +492,37 @@ D=(1-A)*(1-t(A))*(A%*%t(A))
 
 Matrix1 = rbind(diag(1,n+1) - A%*%B,-b)
 
-Matrix3 = (rbind(A%*%B%*%diag(as.vector(Fbar)),b%*%diag(as.vector(Fbar))))%*%(diag(1,n+1) + B%*%D%*%B)%*%(diag(as.vector(Fbar))%*%B%*%(Psi*PhiStar1))
-Matrix4 = (rbind(A%*%B%*%diag(as.vector(Fbar)),b%*%diag(as.vector(Fbar))))%*%(diag(1,n+1) + B%*%D%*%B)%*%(diag(as.vector(Fbar))%*%B%*%(Psi*PhiStar2))
+Matrix3 = (rbind(A%*%B%*%diag(as.vector(Fbar)),b%*%diag(as.vector(Fbar))))%*%(diag(1,n+1) + B%*%D%*%B)%*%(diag(as.vector(Fbar))%*%B%*%(Phi*PhiStar1))
+Matrix4 = (rbind(A%*%B%*%diag(as.vector(Fbar)),b%*%diag(as.vector(Fbar))))%*%(diag(1,n+1) + B%*%D%*%B)%*%(diag(as.vector(Fbar))%*%B%*%(Phi*PhiStar2))
 
 r1_hat = ginv(Matrix1)%*%Matrix3
 r2_hat = ginv(Matrix1)%*%Matrix4
 
+# e_hat
 
+Matrix5 = (rbind(A%*%B%*%diag(as.vector(Fbar)),b%*%diag(as.vector(Fbar))))%*%(diag(1,n+1) + B%*%D%*%B)%*%(diag(as.vector(Fbar))%*%B%*%(Phi*Phi))
+
+e_hat = ginv(Matrix1)%*%Matrix5
+
+# V (variance of estimator)
+
+D=(1-A)*(1-t(A))*(A%*%t(A))
+bf=b*Fbar
+BF=diag(bf[1:(n+1)])
+S=rbind(A%*%BF,t(bf))
+R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
+U=(t(M)%*%R)%*%M
+V=(MMinv%*%U)%*%MMinv
+
+# Var(An)
+
+Var_An = t(PhiStar1)%*%diag(as.vector(Fbar))%*%B%*%V%*%B%*%diag(as.vector(Fbar))%*%PhiStar2+
+  2*b%*%VStar%*%diag(as.vector(Fbar))%*%b+
+  2*t(r1_hat+r2_hat)%*%diag(as.vector(Fbar))%*%b+
+  t(Phi)%*%B%*%V%*%B%*%Phi+
+  2*b%*%e_hat+
+  t(Phi)%*%B%*%diag(as.vector(Fbar))%*%(diag(as.vector(Fbar))%*%b+B%*%D%*%B%*%diag(as.vector(Fbar))%*%B%*%Phi)
+
+# # Variance of sqrt(n)(theta_hat - theta)
+
+VarTheta = Var_An/(t(Phi)**2%*%Fbar)
