@@ -43,37 +43,47 @@ FunZDel = function(n,theta=2,lambda = 1/4){
 }
 
 
-# # #  Numerical application
+# # # Kendall's tau:simulated data
 
-# Function: copula::rCopula
+n = 100
+Max = 100 # number of samples for MSE 
+Tau_hat = rep(NA,times=Max)
 
-n = 5
+for(m in 1:Max){
 
-# # Estimator 
+  # # Estimator 
+  
+  Z1 = FunZDel(n=n)[[1]]
+  Z2 = FunZDel(n=n)[[2]]
+  del = FunZDel(n=n)[[3]]
+  
+  az1=matrix(rep(Z1,n+1),ncol=n+1)
+  az2=matrix(rep(Z2,n+1),ncol=n+1)
+  A=(t(az1)>=az1)*(t(az2)>=az2)
+  # Because of ties, A may not be quite upper triangular. We need to convert some numbers to 0.
+  A[lower.tri(A, diag = FALSE)] = 0
+  rsumA=apply(A,1,sum)
+  
+  eps=1/(n+1)
+  
+  b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+  B=diag(b)
+  
+  Id=diag(rep(1,n+1))
+  M=rbind(Id-A%*%B,-t(b))
+  MMinv=solve(t(M)%*%M)
+  Fbar=MMinv%*%b ### <---- THIS IS THE \bar{F} VECTOR
+  phat=(solve(A)%*%Fbar)[-(n+1)] # weights
+  
+  # # Kendall's tau estimate
+  
+  Tau_hat[m] = 4*(phat %*% Fbar[-(n+1)])-1
 
-Z1 = FunZDel(n=n)[[1]]
-Z2 = FunZDel(n=n)[[2]]
-del = FunZDel(n=n)[[3]]
+}
 
-az1=matrix(rep(Z1,n+1),ncol=n+1)
-az2=matrix(rep(Z2,n+1),ncol=n+1)
-A=(t(az1)>=az1)*(t(az2)>=az2)
-# Because of ties, A may not be quite upper triangular. We need to convert some numbers to 0.
-A[lower.tri(A, diag = FALSE)] = 0
-rsumA=apply(A,1,sum)
+MSE = var(Tau_hat)*(Max/(Max-1))
 
-eps=1/(n+1)
-
-b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
-B=diag(b)
-
-Id=diag(rep(1,n+1))
-M=rbind(Id-A%*%B,-t(b))
-MMinv=solve(t(M)%*%M)
-Fbar=MMinv%*%b ### <---- THIS IS THE \bar{F} VECTOR
-phat=(solve(A)%*%Fbar)[-(n+1)] # weights
-
-# Variance estimator
+# Fbar Variance
 
 D=(1-A)*(1-t(A))*(A%*%t(A))
 bf=b*Fbar
@@ -82,20 +92,6 @@ S=rbind(A%*%BF,t(bf))
 R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
 U=(t(M)%*%R)%*%M
 V=(MMinv%*%U)%*%MMinv
-
-# # Kendall's tau estimate
-
-FBarFun = function(x,y){
-  sum(phat[((Z_ordered[,1] >= x)*(Z_ordered[,2] >= y))])
-}
-
-x = unique(Z_ordered[order(Z_ordered[,1]),1])
-y = unique(Z_ordered[order(Z_ordered[,2]),2])
-F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
-
-persp(x,y,F_bar_grid, theta = 30, phi = 30)
-
-Tau = 4*(phat %*% Fbar[-(n+1)])-1
 
 # # Kendall's tau variance
 
@@ -108,7 +104,17 @@ V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
   2*t(Fbar)%*%B%*%W_hat+
   t(Fbar)%*%B%*%diag(as.vector(Fbar))%*%(diag(1,n+1)+B%*%D%*%B)%*%diag(as.vector(Fbar))%*%B%*%Fbar
 
+# # Graphic for Fbar 
 
+FBarFun = function(x,y){
+  sum(phat[((Z1 >= x)*(Z2 >= y))])
+}
+
+x = unique(Z1[order(Z1)])#
+y = unique(Z2[order(Z2)])#
+F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
+
+persp(x,y,F_bar_grid, theta = 30, phi = 30)
 
 
 
@@ -335,8 +341,8 @@ n_vect = seq(from=100,to=1000,by=10)
 theta_hat = rep(NA,length(n_vect))
 
 lambda = 1/4 # check
-alpha = 10 # Weibull distribution shape parameter
-beta = 1.7 # Weibull distribution scale parameter
+#alpha = 10 # Weibull distribution shape parameter
+#beta = 1.7 # Weibull distribution scale parameter
 
 for(i in 1:length(n_vect)){
   
