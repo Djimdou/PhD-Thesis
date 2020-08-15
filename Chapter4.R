@@ -2,6 +2,9 @@ library(tabulizer)
 library(MASS) # for ginv
 library(dplyr)
 library(copula) # for claytonCopula
+#install.packages('pracma')
+library(pracma) # for NewtonRaphson procedure
+
 
 
 FunZDel = function(n,theta=2,lambda = 1/4){
@@ -369,6 +372,11 @@ for(i in 1:length(n_vect)){
   Fbar=MMinv%*%b ### <---- THIS IS THE \bar{F} VECTOR
   phat=(solve(A)%*%Fbar)#[-(n+1)] # weights
   
+  # Starting point of Newton-Raphson
+  
+  Tau = 4*(t(phat[-(n+1)]) %*% Fbar[-(n+1)])-1
+  Theta0 = 2*Tau/(1-Tau)
+  
   # # MLE of theta
   
   # Fn1
@@ -384,8 +392,8 @@ for(i in 1:length(n_vect)){
 
   M=rbind(Id-A%*%B,-t(b))
   MMinv=solve(t(M)%*%M)
-  Fn1= 1-MMinv%*%b # 1-round((MMinv%*%b),digits = 10)# avoiding floating points # 1-MMinv%*%b
-  Fn1[Fn1<=10**(-5)]=min(Fn1[Fn1>=10**(-5)])
+  Fn1= 1-MMinv%*%b 
+  Fn1[Fn1<=10**(-2)]=min(Fn1[Fn1>=10**(-2)])
   
   # Fn2
   
@@ -401,15 +409,23 @@ for(i in 1:length(n_vect)){
   M=rbind(Id-A%*%B,-t(b))
   MMinv=solve(t(M)%*%M)
   Fn2=1-MMinv%*%b
-  Fn2[Fn2<=10**(-5)]=min(Fn2[Fn2>=10**(-5)])
-  
+  Fn2[Fn2<=10**(-2)]=min(Fn2[Fn2>=10**(-2)])
+
   # Log-pseudo-likelihood function
+  LogL = function(x){
+    sum(phat*(log(x+1)-(x+1)*log(Fn1*Fn2)-(2+1/x)*log(Fn1**(-x)+Fn2**(-x)-1)))
+  }
+  
+  # Log-pseudo-likelihood function derivative
   DiffLogL = function(x){
-    sum(phat*(1/(x+1)-log(Fn1*Fn2))+(1/x**2)*log(Fn1**(-x)+Fn2**(-x)-1)-(2+1/x)*(-Fn1**(-x)*log(Fn1)-Fn2**(-x)*log(Fn2))/(Fn1**(-x)+Fn2**(-x)-1))
+    sum(phat*(rep(1/(x+1),times=n+1)-log(Fn1*Fn2))+(rep(1/x**2,times=n+1))*log(Fn1**(rep(-x,times=n+1))+
+        Fn2**(rep(-x,times=n+1))-1)-(rep(2+1/x,times=n+1))*(-Fn1**(rep(-x,times=n+1))*
+        log(Fn1)-Fn2**(rep(-x,times=n+1))*log(Fn2))/(Fn1**(rep(-x,times=n+1))+Fn2**(rep(-x,times=n+1))-1))
   }
   
   # MLE estimate of theta
-  theta_hat[i] = optimise(f=DiffLogL,interval=c(0,10**2),maximum = TRUE)$maximum
+  #theta_hat[i] = optimise(f=LogL,interval=c(0,10**2),maximum = TRUE)$maximum
+  theta_hat[i] = newton(fun=DiffLogL, x0=Theta0)
 }
 
 
