@@ -81,7 +81,7 @@ for(m in 1:Max){
 
 }
 
-MSE = var(Tau_hat)*(Max/(Max-1))
+MSE = var(Tau_hat)*((Max-1)/Max)
 
 # Fbar Variance
 
@@ -100,9 +100,9 @@ Matrix2 = (rbind(A%*%B%*%diag(as.vector(Fbar)),b%*%diag(as.vector(Fbar))))%*%(di
 
 W_hat = ginv(Matrix1)%*%Matrix2
 
-V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
+V_tau = 4**2*(t(Fbar)%*%B%*%V%*%B%*%Fbar+
   2*t(Fbar)%*%B%*%W_hat+
-  t(Fbar)%*%B%*%diag(as.vector(Fbar))%*%(diag(1,n+1)+B%*%D%*%B)%*%diag(as.vector(Fbar))%*%B%*%Fbar
+  t(Fbar)%*%B%*%diag(as.vector(Fbar))%*%(diag(1,n+1)+B%*%D%*%B)%*%diag(as.vector(Fbar))%*%B%*%Fbar)
 
 # # Graphic for Fbar 
 
