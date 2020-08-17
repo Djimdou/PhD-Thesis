@@ -7,7 +7,7 @@ library(pracma) # for NewtonRaphson procedure
 
 
 
-FunZDel = function(n,theta=2,lambda = 1/4){
+FunZDel = function(n,theta,lambda = 1){
   
   # Uniform variables with a Clayton copula joint distribution
   
@@ -48,17 +48,18 @@ FunZDel = function(n,theta=2,lambda = 1/4){
 
 # # # Kendall's tau:simulated data
 
-n = 100
+n = 500
 Max = 100 # number of samples for MSE 
 Tau_hat = rep(NA,times=Max)
+theta = 1/2
 
 for(m in 1:Max){
 
   # # Estimator 
   
-  Z1 = FunZDel(n=n)[[1]]
-  Z2 = FunZDel(n=n)[[2]]
-  del = FunZDel(n=n)[[3]]
+  Z1 = FunZDel(n=n,theta=theta)[[1]]
+  Z2 = FunZDel(n=n,theta=theta)[[2]]
+  del = FunZDel(n=n,theta=theta)[[3]]
   
   az1=matrix(rep(Z1,n+1),ncol=n+1)
   az2=matrix(rep(Z2,n+1),ncol=n+1)
@@ -75,14 +76,16 @@ for(m in 1:Max){
   Id=diag(rep(1,n+1))
   M=rbind(Id-A%*%B,-t(b))
   MMinv=solve(t(M)%*%M)
-  Fbar=MMinv%*%b ### <---- THIS IS THE \bar{F} VECTOR
-  phat=(solve(A)%*%Fbar)[-(n+1)] # weights
+  Fbar=MMinv%*%b
+  phat=(solve(A)%*%Fbar)#[-(n+1)]
   
-  # # Kendall's tau estimate
+  # # Kendall tau estimate
   
-  Tau_hat[m] = 4*(phat %*% Fbar[-(n+1)])-1
+  Tau_hat[m] = 4*(t(phat) %*% Fbar)-1
 
 }
+
+# plot(Tau_hat,type='l',ylim=range(c(Tau_hat,theta/(theta+2))));abline(h=theta/(theta+2));
 
 MSE = var(Tau_hat)*((Max-1)/Max)
 
@@ -121,7 +124,7 @@ persp(x,y,F_bar_grid, theta = 30, phi = 30)
 
 
 
-# # Kendall's tau
+
 
 
 
@@ -339,18 +342,20 @@ V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
 
 # n = 5
 
-n_vect = seq(from=100,to=1000,by=10)
+n_vect = seq(from=100,to=1000,by=100)
 
 theta_hat = rep(NA,length(n_vect))
 
 lambda = 1/4 # check
 
+theta = 1
+
 for(i in 1:length(n_vect)){
   
   n = n_vect[i]
-  Z1 = FunZDel(n=n)[[1]]
-  Z2 = FunZDel(n=n)[[2]]
-  del = FunZDel(n=n)[[3]]
+  Z1 = FunZDel(n=n,theta=theta)[[1]]
+  Z2 = FunZDel(n=n,theta=theta)[[2]]
+  del = FunZDel(n=n,theta=theta)[[3]]
   
   az1=matrix(rep(Z1,n+1),ncol=n+1)
   az2=matrix(rep(Z2,n+1),ncol=n+1)
@@ -434,8 +439,8 @@ for(i in 1:length(n_vect)){
   
   # MLE estimate of theta
   #theta_hat[i] = optimise(f=LogL,interval=c(0,10**2),maximum = TRUE)$maximum
-  theta_hat[i] = newtonRaphson(fun=DiffLogL, x0=Theta0)$root
-  #uniroot(f=DiffLogL2, interval=c(0.01,10**2))$root
+  #theta_hat[i] = newtonRaphson(fun=DiffLogL, x0=Theta0)$root
+  theta_hat[i] = uniroot(f=DiffLogL2, interval=c(0.01,10**2))$root
   
   # Coding Newton-Raphson:
   # https://rpubs.com/aaronsc32/newton-raphson-method#:~:text=%23%23%20%5B1%5D%203.162278-,Newton%2DRaphson%20Method%20in%20R,rootSolve%20package%20features%20the%20uniroot.
