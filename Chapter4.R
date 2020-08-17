@@ -337,15 +337,13 @@ V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
 
 # # #  Pseudo-likelihood maximization: variance
 
-# n = 1000
+# n = 5
 
 n_vect = seq(from=100,to=1000,by=10)
 
 theta_hat = rep(NA,length(n_vect))
 
 lambda = 1/4 # check
-#alpha = 10 # Weibull distribution shape parameter
-#beta = 1.7 # Weibull distribution scale parameter
 
 for(i in 1:length(n_vect)){
   
@@ -393,7 +391,7 @@ for(i in 1:length(n_vect)){
   M=rbind(Id-A%*%B,-t(b))
   MMinv=solve(t(M)%*%M)
   Fn1= 1-MMinv%*%b 
-  Fn1[Fn1<=10**(-2)]=min(Fn1[Fn1>=10**(-2)])
+  Fn1[Fn1<=10**(-5)]=min(Fn1[Fn1>=10**(-5)])
   
   # Fn2
   
@@ -409,7 +407,7 @@ for(i in 1:length(n_vect)){
   M=rbind(Id-A%*%B,-t(b))
   MMinv=solve(t(M)%*%M)
   Fn2=1-MMinv%*%b
-  Fn2[Fn2<=10**(-2)]=min(Fn2[Fn2>=10**(-2)])
+  Fn2[Fn2<=10**(-5)]=min(Fn2[Fn2>=10**(-5)])
 
   # Log-pseudo-likelihood function
   LogL = function(x){
@@ -418,14 +416,30 @@ for(i in 1:length(n_vect)){
   
   # Log-pseudo-likelihood function derivative
   DiffLogL = function(x){
-    sum(phat*(rep(1/(x+1),times=n+1)-log(Fn1*Fn2))+(rep(1/x**2,times=n+1))*log(Fn1**(rep(-x,times=n+1))+
-        Fn2**(rep(-x,times=n+1))-1)-(rep(2+1/x,times=n+1))*(-Fn1**(rep(-x,times=n+1))*
-        log(Fn1)-Fn2**(rep(-x,times=n+1))*log(Fn2))/(Fn1**(rep(-x,times=n+1))+Fn2**(rep(-x,times=n+1))-1))
+    sum(phat*(rep(1/(x+1),times=n+1)-log(Fn1*Fn2)+
+        (rep(1/x**2,times=n+1))*log(Fn1**(rep(-x,times=n+1))+
+          Fn2**(rep(-x,times=n+1))-1)+
+          (rep(2+1/x,times=n+1))*(Fn1**(rep(-x,times=n+1))*
+        log(Fn1)+Fn2**(rep(-x,times=n+1))*log(Fn2))/
+          (Fn1**(rep(-x,times=n+1))+Fn2**(rep(-x,times=n+1))-1)))
   }
+  
+  DiffLogL2 = function(x){
+    sum(phat*(1/(x+1)-log(Fn1*Fn2)+(1/x**2)*log(Fn1**(-x)+Fn2**(-x)-1)
+        +(2+1/x)*(Fn1**(-x)*log(Fn1) +  Fn2**(-x)*log(Fn2))/(Fn1**(-x)+Fn2**(-x)-1)))
+  }
+  
+  # x=matrix(seq(from=0.01,to=5,by=0.1)); ForPlot=apply(X=x,MARGIN=1,FUN=DiffLogL);
+  # plot(x,ForPlot,type='l');abline(h=0);
   
   # MLE estimate of theta
   #theta_hat[i] = optimise(f=LogL,interval=c(0,10**2),maximum = TRUE)$maximum
-  theta_hat[i] = newton(fun=DiffLogL, x0=Theta0)
+  theta_hat[i] = newtonRaphson(fun=DiffLogL, x0=Theta0)$root
+  #uniroot(f=DiffLogL2, interval=c(0.01,10**2))$root
+  
+  # Coding Newton-Raphson:
+  # https://rpubs.com/aaronsc32/newton-raphson-method#:~:text=%23%23%20%5B1%5D%203.162278-,Newton%2DRaphson%20Method%20in%20R,rootSolve%20package%20features%20the%20uniroot.
+  
 }
 
 
