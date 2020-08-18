@@ -4,12 +4,14 @@ library(dplyr)
 library(copula) # for claytonCopula
 #install.packages('pracma')
 library(pracma) # for NewtonRaphson procedure
+library(CASdatasets) # dataset 
 
 
 
 FunZDel = function(n,theta,lambda = 1){
   
   # Uniform variables with a Clayton copula joint distribution
+  set.seed(1)
   
   clayton <- claytonCopula(param=theta)
   U <- rCopula(n=n, clayton)[,1]
@@ -45,6 +47,62 @@ FunZDel = function(n,theta,lambda = 1){
   return(list(Z1,Z2,del))
 }
 
+# Log-pseudo-likelihood function
+LogL = function(x){
+  sum(phat*(log(x+1)-(x+1)*log(Fn1*Fn2)-(2+1/x)*log(Fn1**(-x)+Fn2**(-x)-1)))
+}
+
+# Log-pseudo-likelihood function derivative
+DiffLogL = function(x){
+  sum(phat*(rep(1/(x+1),times=n+1)-log(Fn1*Fn2)+
+              (rep(1/x**2,times=n+1))*log(Fn1**(rep(-x,times=n+1))+
+                                            Fn2**(rep(-x,times=n+1))-1)+
+              (rep(2+1/x,times=n+1))*(Fn1**(rep(-x,times=n+1))*
+                                        log(Fn1)+Fn2**(rep(-x,times=n+1))*log(Fn2))/
+              (Fn1**(rep(-x,times=n+1))+Fn2**(rep(-x,times=n+1))-1)))
+}
+
+DiffLogL2 = function(x){
+  sum(phat*(1/(x+1)-log(Fn1*Fn2)+(1/x**2)*log(Fn1**(-x)+Fn2**(-x)-1)
+            +(2+1/x)*(Fn1**(-x)*log(Fn1) +  Fn2**(-x)*log(Fn2))/(Fn1**(-x)+Fn2**(-x)-1)))
+}
+
+
+FunZDel_canlifins = function(size){
+  
+  data(canlifins) # load the dataset
+  # 14,889 contracts where one annuitant is male and the other female
+  
+  Sample = sample(1:dim(canlifins)[1],size = size)
+  canlifins = canlifins[Sample,]
+  
+  #  c(
+  #    sum((canlifins$DeathTimeF == 0) & (canlifins$DeathTimeF == 0)), # number of doubly censored couples
+  #    sum((canlifins$DeathTimeM > 0) & (canlifins$DeathTimeF == 0)), # number of couples where only the woman is censored
+  #    sum((canlifins$DeathTimeM == 0) & (canlifins$DeathTimeF > 0)), # number of couples where only the man is censored
+  #    sum((canlifins$DeathTimeM > 0) & (canlifins$DeathTimeF > 0)) # number of doubly uncensored couples
+  #  )
+  
+  canlifins[canlifins$DeathTimeM == 0,"DeathTimeM"] = max(canlifins$AnnuityExpiredM)
+  canlifins[canlifins$DeathTimeF == 0,"DeathTimeF"] = max(canlifins$AnnuityExpiredM)
+  
+  ordre = order(canlifins$DeathTimeM,canlifins$DeathTimeF)
+  Z_ordered = cbind(canlifins$DeathTimeM,canlifins$DeathTimeF)[ordre,]
+  
+  del1 = as.integer(canlifins$DeathTimeM > 0) 
+  del2 = as.integer(canlifins$DeathTimeF > 0)
+  
+  xinf=max(Z_ordered[,1],Z_ordered[,2])+1 # CREATING POINT AT INFINITY
+  Z1=c(Z_ordered[,1],xinf)
+  Z2=c(Z_ordered[,2],xinf)
+  
+  del1=c(del1,1)
+  del2=c(del2,1)
+  del=del1*del2
+  
+  return(list(Z1,Z2,del))
+}
+
 
 # # # Kendall's tau:simulated data
 
@@ -57,9 +115,10 @@ for(m in 1:Max){
 
   # # Estimator 
   
-  Z1 = FunZDel(n=n,theta=theta)[[1]]
-  Z2 = FunZDel(n=n,theta=theta)[[2]]
-  del = FunZDel(n=n,theta=theta)[[3]]
+  ZDel = FunZDel(n=n,theta=theta)
+  Z1 = ZDel[[1]]
+  Z2 = ZDel[[2]]
+  del = ZDel[[3]]
   
   az1=matrix(rep(Z1,n+1),ncol=n+1)
   az2=matrix(rep(Z2,n+1),ncol=n+1)
@@ -247,42 +306,16 @@ V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
 #library(zoo)
 
 #install.packages("CASdatasets", repos = "http://cas.uqam.ca/pub/R/", type="source")
-library(CASdatasets)
-data(canlifins) # load the dataset
-# 14,889 contracts where one annuitant is male and the other female
 
-#write.csv(canlifins,file="C:/Users/djimd/OneDrive/Documents/Concordia - PhD/Thesis/canlifins.csv",row.names = FALSE)
 
-Sample = sample(1:dim(canlifins)[1],size = 500)
-canlifins = canlifins[Sample,]
+# Estimator
 
-c(
-sum((canlifins$DeathTimeF == 0) & (canlifins$DeathTimeF == 0)), # number of doubly censored couples
-sum((canlifins$DeathTimeM > 0) & (canlifins$DeathTimeF == 0)), # number of couples where only the woman is censored
-sum((canlifins$DeathTimeM == 0) & (canlifins$DeathTimeF > 0)), # number of couples where only the man is censored
-sum((canlifins$DeathTimeM > 0) & (canlifins$DeathTimeF > 0)) # number of doubly uncensored couples
-)
+n=500
 
-# # Estimator 
-
-n = dim(canlifins)[1]
-
-canlifins[canlifins$DeathTimeM == 0,"DeathTimeM"] = max(canlifins$AnnuityExpiredM)
-canlifins[canlifins$DeathTimeF == 0,"DeathTimeF"] = max(canlifins$AnnuityExpiredM)
-
-ordre = order(canlifins$DeathTimeM,canlifins$DeathTimeF)
-Z_ordered = cbind(canlifins$DeathTimeM,canlifins$DeathTimeF)[ordre,]
-
-del1 = as.integer(canlifins$DeathTimeM > 0) 
-del2 = as.integer(canlifins$DeathTimeF > 0)
-
-xinf=max(Z_ordered[,1],Z_ordered[,2])+1 # CREATING POINT AT INFINITY
-Z1=c(Z_ordered[,1],xinf)
-Z2=c(Z_ordered[,2],xinf)
-
-del1=c(del1,1)
-del2=c(del2,1)
-del=del1*del2
+ZDel = FunZDel_canlifins(size=n)
+Z1 = ZDel[[1]]
+Z2 = ZDel[[2]]
+del = ZDel[[3]]
 
 az1=matrix(rep(Z1,n+1),ncol=n+1)
 az2=matrix(rep(Z2,n+1),ncol=n+1)
@@ -302,6 +335,18 @@ MMinv=solve(t(M)%*%M)
 Fbar=MMinv%*%b ### <---- THIS IS THE \bar{F} VECTOR
 phat=(solve(A)%*%Fbar)[-(n+1)] # weights
 
+# Graph of Fbar
+
+FBarFun = function(x,y){
+  sum(phat[((Z_ordered[,1] >= x)*(Z_ordered[,2] >= y))])
+}
+
+x = unique(Z_ordered[order(Z_ordered[,1]),1])
+y = unique(Z_ordered[order(Z_ordered[,2]),2])
+F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
+
+persp(x,y,F_bar_grid, theta = 30, phi = 30)
+
 # Variance estimator
 
 D=(1-A)*(1-t(A))*(A%*%t(A))
@@ -314,17 +359,7 @@ V=(MMinv%*%U)%*%MMinv
 
 # # Kendall's tau estimate
 
-FBarFun = function(x,y){
-  sum(phat[((Z_ordered[,1] >= x)*(Z_ordered[,2] >= y))])
-}
-
-x = unique(Z_ordered[order(Z_ordered[,1]),1])
-y = unique(Z_ordered[order(Z_ordered[,2]),2])
-F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
-
-persp(x,y,F_bar_grid, theta = 30, phi = 30)
-
-Tau = 4*(phat %*% Fbar[-(n+1)])-1
+Tau_hat = 4*(phat %*% Fbar[-(n+1)])-1
 
 # # Kendall's tau variance
 
@@ -348,14 +383,15 @@ theta_hat = rep(NA,length(n_vect))
 
 lambda = 1/4 # check
 
-theta = 1
+theta = 2
 
 for(i in 1:length(n_vect)){
   
   n = n_vect[i]
-  Z1 = FunZDel(n=n,theta=theta)[[1]]
-  Z2 = FunZDel(n=n,theta=theta)[[2]]
-  del = FunZDel(n=n,theta=theta)[[3]]
+  ZDel = FunZDel(n=n,theta=theta)
+  Z1 = ZDel[[1]]
+  Z2 = ZDel[[2]]
+  del = ZDel[[3]]
   
   az1=matrix(rep(Z1,n+1),ncol=n+1)
   az2=matrix(rep(Z2,n+1),ncol=n+1)
@@ -414,33 +450,13 @@ for(i in 1:length(n_vect)){
   Fn2=1-MMinv%*%b
   Fn2[Fn2<=10**(-5)]=min(Fn2[Fn2>=10**(-5)])
 
-  # Log-pseudo-likelihood function
-  LogL = function(x){
-    sum(phat*(log(x+1)-(x+1)*log(Fn1*Fn2)-(2+1/x)*log(Fn1**(-x)+Fn2**(-x)-1)))
-  }
-  
-  # Log-pseudo-likelihood function derivative
-  DiffLogL = function(x){
-    sum(phat*(rep(1/(x+1),times=n+1)-log(Fn1*Fn2)+
-        (rep(1/x**2,times=n+1))*log(Fn1**(rep(-x,times=n+1))+
-          Fn2**(rep(-x,times=n+1))-1)+
-          (rep(2+1/x,times=n+1))*(Fn1**(rep(-x,times=n+1))*
-        log(Fn1)+Fn2**(rep(-x,times=n+1))*log(Fn2))/
-          (Fn1**(rep(-x,times=n+1))+Fn2**(rep(-x,times=n+1))-1)))
-  }
-  
-  DiffLogL2 = function(x){
-    sum(phat*(1/(x+1)-log(Fn1*Fn2)+(1/x**2)*log(Fn1**(-x)+Fn2**(-x)-1)
-        +(2+1/x)*(Fn1**(-x)*log(Fn1) +  Fn2**(-x)*log(Fn2))/(Fn1**(-x)+Fn2**(-x)-1)))
-  }
-  
-  # x=matrix(seq(from=0.01,to=5,by=0.1)); ForPlot=apply(X=x,MARGIN=1,FUN=DiffLogL);
-  # plot(x,ForPlot,type='l');abline(h=0);
+  # x=matrix(seq(from=0.01,to=5,by=0.1)); ForPlot=apply(X=x,MARGIN=1,FUN=LogL);
+  # plot(x,ForPlot,type='l',ylim=range(c(ForPlot,0)));abline(h=0);
   
   # MLE estimate of theta
-  #theta_hat[i] = optimise(f=LogL,interval=c(0,10**2),maximum = TRUE)$maximum
+  theta_hat[i] = optimise(f=LogL,interval=c(0,10**2),maximum = TRUE)$maximum
   #theta_hat[i] = newtonRaphson(fun=DiffLogL, x0=Theta0)$root
-  theta_hat[i] = uniroot(f=DiffLogL2, interval=c(0.01,10**2))$root
+  #theta_hat[i] = uniroot(f=DiffLogL2, interval=c(0.01,10**2))$root
   
   # Coding Newton-Raphson:
   # https://rpubs.com/aaronsc32/newton-raphson-method#:~:text=%23%23%20%5B1%5D%203.162278-,Newton%2DRaphson%20Method%20in%20R,rootSolve%20package%20features%20the%20uniroot.
