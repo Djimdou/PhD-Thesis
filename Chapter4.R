@@ -8,21 +8,29 @@ library(CASdatasets) # dataset
 
 
 
-FunZDel = function(n,theta,lambda = 1){
+FunZDel = function(n,theta,lambda=1,seed=1){
   
   # Uniform variables with a Clayton copula joint distribution
-  set.seed(1)
   
-  clayton <- claytonCopula(param=theta)
-  U <- rCopula(n=n, clayton)[,1]
-  V <- rCopula(n=n, clayton)[,2]
+  #clayton <- claytonCopula(param=theta)
+  #U <- rCopula(n=n, clayton)[,1]
+  #V <- rCopula(n=n, clayton)[,2]
   
   # Weibull distribution for X and Y
   alpha = 10 # Weibull distribution shape parameter
   beta = 1.7 # Weibull distribution scale parameter
   
-  X = beta*(-log(U))**(1/alpha)
-  Y = beta*(-log(V))**(1/alpha)
+  MyCopula <- mvdc(copula=claytonCopula(param=theta),
+                   margins=c("weibull","weibull"),
+                   paramMargins=list(shape=alpha,scale=beta))
+  
+  set.seed(seed)
+  X <- rMvdc(n=n,MyCopula)[,1]
+  set.seed(seed)
+  Y <- rMvdc(n=n,MyCopula)[,2]
+  
+  #X = beta*(-log(U))**(1/alpha)
+  #Y = beta*(-log(V))**(1/alpha)
   
   # Censoring variable
 
@@ -68,11 +76,12 @@ DiffLogL2 = function(x){
 }
 
 
-FunZDel_canlifins = function(size){
+FunZDel_canlifins = function(size,seed=1){
   
   data(canlifins) # load the dataset
   # 14,889 contracts where one annuitant is male and the other female
   
+  set.seed(seed)
   Sample = sample(1:dim(canlifins)[1],size = size)
   canlifins = canlifins[Sample,]
   
@@ -115,7 +124,7 @@ for(m in 1:Max){
 
   # # Estimator 
   
-  ZDel = FunZDel(n=n,theta=theta)
+  ZDel = FunZDel(n=n,theta=theta,seed=m)
   Z1 = ZDel[[1]]
   Z2 = ZDel[[2]]
   del = ZDel[[3]]
@@ -180,11 +189,6 @@ y = unique(Z2[order(Z2)])#
 F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
 
 persp(x,y,F_bar_grid, theta = 30, phi = 30)
-
-
-
-
-
 
 
 
@@ -377,7 +381,7 @@ V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
 
 # n = 5
 
-n_vect = seq(from=100,to=1000,by=100)
+n_vect = seq(from=100,to=1500,by=100)
 
 theta_hat = rep(NA,length(n_vect))
 
@@ -388,7 +392,7 @@ theta = 2
 for(i in 1:length(n_vect)){
   
   n = n_vect[i]
-  ZDel = FunZDel(n=n,theta=theta)
+  ZDel = FunZDel(n=n,theta=theta,seed=i)
   Z1 = ZDel[[1]]
   Z2 = ZDel[[2]]
   del = ZDel[[3]]
@@ -408,8 +412,8 @@ for(i in 1:length(n_vect)){
   Id=diag(rep(1,n+1))
   M=rbind(Id-A%*%B,-t(b))
   MMinv=solve(t(M)%*%M)
-  Fbar=MMinv%*%b ### <---- THIS IS THE \bar{F} VECTOR
-  phat=(solve(A)%*%Fbar)#[-(n+1)] # weights
+  Fbar=MMinv%*%b 
+  phat=(solve(A)%*%Fbar)
   
   # Starting point of Newton-Raphson
   
@@ -450,12 +454,12 @@ for(i in 1:length(n_vect)){
   Fn2=1-MMinv%*%b
   Fn2[Fn2<=10**(-5)]=min(Fn2[Fn2>=10**(-5)])
 
-  # x=matrix(seq(from=0.01,to=5,by=0.1)); ForPlot=apply(X=x,MARGIN=1,FUN=LogL);
+  # x=matrix(seq(from=0.01,to=5,by=0.1)); ForPlot=apply(X=x,MARGIN=1,FUN=DiffLogL);
   # plot(x,ForPlot,type='l',ylim=range(c(ForPlot,0)));abline(h=0);
   
   # MLE estimate of theta
-  theta_hat[i] = optimise(f=LogL,interval=c(0,10**2),maximum = TRUE)$maximum
-  #theta_hat[i] = newtonRaphson(fun=DiffLogL, x0=Theta0)$root
+  # theta_hat[i] = optimise(f=LogL,interval=c(0,10**2),maximum = TRUE)$maximum
+  theta_hat[i] = newtonRaphson(fun=DiffLogL, x0=Theta0)$root
   #theta_hat[i] = uniroot(f=DiffLogL2, interval=c(0.01,10**2))$root
   
   # Coding Newton-Raphson:
@@ -463,6 +467,7 @@ for(i in 1:length(n_vect)){
   
 }
 
+# plot(theta_hat,type='l',ylim=range(c(theta_hat,theta)));abline(h=theta);
 
 # # Variance of An
 
