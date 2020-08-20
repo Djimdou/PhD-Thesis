@@ -8,7 +8,7 @@ library(CASdatasets) # dataset
 
 
 
-FunZDel = function(n,theta,lambda=1,seed=1){
+FunZDel = function(n,theta,lambda=1,seed=1,alpha=2,beta=1.1){
   
   # Uniform variables with a Clayton copula joint distribution
   
@@ -17,12 +17,12 @@ FunZDel = function(n,theta,lambda=1,seed=1){
   #V <- rCopula(n=n, clayton)[,2]
   
   # Weibull distribution for X and Y
-  alpha = 10 # Weibull distribution shape parameter
-  beta = 1.7 # Weibull distribution scale parameter
+  #alpha = 10 # Weibull distribution shape parameter
+  #beta = 1.7 # Weibull distribution scale parameter
   
-  MyCopula <- mvdc(copula=claytonCopula(param=theta),
-                   margins=c("weibull","weibull"),
-                   paramMargins=list(shape=alpha,scale=beta))
+  MyCopula <- mvdc(copula=claytonCopula(param=theta), # Clayton copula for F(X) and F(Y)
+                   margins=c("weibull","weibull"), # Weibull distribution for margins X and Y
+                   paramMargins=list(shape=alpha,scale=beta)) # alpha:shape, beta:scale
   
   set.seed(seed)
   X <- rMvdc(n=n,MyCopula)[,1]
@@ -70,10 +70,10 @@ DiffLogL = function(x){
               (Fn1**(rep(-x,times=n+1))+Fn2**(rep(-x,times=n+1))-1)))
 }
 
-DiffLogL2 = function(x){
-  sum(phat*(1/(x+1)-log(Fn1*Fn2)+(1/x**2)*log(Fn1**(-x)+Fn2**(-x)-1)
-            +(2+1/x)*(Fn1**(-x)*log(Fn1) +  Fn2**(-x)*log(Fn2))/(Fn1**(-x)+Fn2**(-x)-1)))
-}
+#DiffLogL2 = function(x){
+#  sum(phat*(1/(x+1)-log(Fn1*Fn2)+(1/x**2)*log(Fn1**(-x)+Fn2**(-x)-1)
+#            +(2+1/x)*(Fn1**(-x)*log(Fn1) +  Fn2**(-x)*log(Fn2))/(Fn1**(-x)+Fn2**(-x)-1)))
+#}
 
 
 FunZDel_canlifins = function(size,seed=1){
@@ -115,10 +115,10 @@ FunZDel_canlifins = function(size,seed=1){
 
 # # # Kendall's tau:simulated data
 
-n = 500
-Max = 100 # number of samples for MSE 
+n = 1000
+Max = 1000 # number of samples for MSE 
 Tau_hat = rep(NA,times=Max)
-theta = 1/2
+theta = 2
 
 for(m in 1:Max){
 
@@ -153,9 +153,16 @@ for(m in 1:Max){
 
 }
 
-# plot(Tau_hat,type='l',ylim=range(c(Tau_hat,theta/(theta+2))));abline(h=theta/(theta+2));
 
-MSE = var(Tau_hat)*((Max-1)/Max)
+# MSE and its decomposition
+
+Tau = theta/(theta+2)
+plot(Tau_hat,type='l',ylim=range(c(Tau_hat,Tau)));abline(h=Tau);
+
+Var = var(Tau_hat)*((Max-1)/Max)
+Bias2 = (mean(Tau_hat)-Tau)**2
+
+MSE=Var+Bias2
 
 # Fbar Variance
 
