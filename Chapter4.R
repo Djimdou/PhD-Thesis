@@ -41,7 +41,7 @@ FunZDel = function(n,theta,lambda=1,seed=1,alpha=2,beta=1.1){
   ordre = order(X,Y)
   Z_ordered = cbind(X,Y)[ordre,]
   
-  xinf=max(Z_ordered[,1],Z_ordered[,2])+1 # CREATING POINT AT INFINITY
+  xinf=max(Z_ordered[,1],Z_ordered[,2])+100 # CREATING POINT AT INFINITY
   Z1=c(Z_ordered[,1],xinf)
   Z2=c(Z_ordered[,2],xinf)
   
@@ -101,7 +101,7 @@ FunZDel_canlifins = function(size,seed=1){
   del1 = as.integer(canlifins$DeathTimeM > 0) 
   del2 = as.integer(canlifins$DeathTimeF > 0)
   
-  xinf=max(Z_ordered[,1],Z_ordered[,2])+1 # CREATING POINT AT INFINITY
+  xinf=max(Z_ordered[,1],Z_ordered[,2])+100 # CREATING POINT AT INFINITY
   Z1=c(Z_ordered[,1],xinf)
   Z2=c(Z_ordered[,2],xinf)
   
@@ -118,16 +118,20 @@ FunZDel_canlifins = function(size,seed=1){
 n = 1000
 Max = 1000 # number of samples for MSE 
 Tau_hat = rep(NA,times=Max)
-theta = 2
+del_mean = rep(NA,times=Max)
+theta = 1
+beta=1.1
 
 for(m in 1:Max){
 
   # # Estimator 
   
-  ZDel = FunZDel(n=n,theta=theta,seed=m)
+  ZDel = FunZDel(n=n,theta=theta,seed=m,beta=beta)
   Z1 = ZDel[[1]]
   Z2 = ZDel[[2]]
   del = ZDel[[3]]
+  
+  del_mean[m] = mean(del)
   
   az1=matrix(rep(Z1,n+1),ncol=n+1)
   az2=matrix(rep(Z2,n+1),ncol=n+1)
@@ -157,7 +161,17 @@ for(m in 1:Max){
 # MSE and its decomposition
 
 Tau = theta/(theta+2)
-plot(Tau_hat,type='l',ylim=range(c(Tau_hat,Tau)));abline(h=Tau);
+#plot(Tau_hat,type='l',ylim=range(c(Tau_hat,Tau)));abline(h=Tau);
+
+Xlabels = seq(from=0,to=1000,by=100)
+Ylabels = seq(from=0,to=max(c(Tau_hat,Tau))+0.2,by=0.1)
+Ylim = range(c(Tau_hat,Tau))
+par(mfrow=c(1,1))
+plot(Tau_hat,lwd = 2,xlab="",ylab="",xaxt="none",yaxt="none")
+abline(h=Tau,col='red',lwd = 3)
+axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
+axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
+mtext(side=1, line=2.25, "iteration rank", font=2,cex=1.5)
 
 Var = var(Tau_hat)*((Max-1)/Max)
 Bias2 = (mean(Tau_hat)-Tau)**2
@@ -392,7 +406,7 @@ n_vect = seq(from=100,to=1500,by=100)
 
 theta_hat = rep(NA,length(n_vect))
 
-lambda = 1/4 # check
+#lambda = 1/4 # check
 
 theta = 2
 
