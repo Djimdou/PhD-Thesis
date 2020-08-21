@@ -8,7 +8,7 @@ library(CASdatasets) # dataset
 
 
 
-FunZDel = function(n,theta,lambda=1,seed=1,alpha=2,beta=1.1){
+FunZDel = function(n,theta,lambda=1,seed=1,alpha=2,beta){
   
   # Uniform variables with a Clayton copula joint distribution
   
@@ -115,12 +115,12 @@ FunZDel_canlifins = function(size,seed=1){
 
 # # # Kendall's tau:simulated data
 
-n = 1000
+n = 1500
 Max = 1000 # number of samples for MSE 
 Tau_hat = rep(NA,times=Max)
 del_mean = rep(NA,times=Max)
-theta = 1
-beta=1.1
+theta = 2
+beta=1.7
 
 for(m in 1:Max){
 
@@ -149,7 +149,16 @@ for(m in 1:Max){
   M=rbind(Id-A%*%B,-t(b))
   MMinv=solve(t(M)%*%M)
   Fbar=MMinv%*%b
-  phat=(solve(A)%*%Fbar)#[-(n+1)]
+  
+  # The function 'solve' has some trouble sinverting some A's for n >= 1500
+  # (example with seed=4). 'ginv' can do it, but is more time consuming. 
+  # A tradeoff is to use ginv where solve fails. 
+  
+  if("try-error" %in% class(try(solve(A)))){
+    phat=(ginv(A)%*%Fbar)
+  } else {
+    phat=(solve(A)%*%Fbar)#[-(n+1)]
+  }
   
   # # Kendall tau estimate
   
@@ -398,7 +407,7 @@ V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
   t(Fbar)%*%B%*%diag(as.vector(Fbar))%*%(diag(1,n+1)+B%*%D%*%B)%*%diag(as.vector(Fbar))%*%B%*%Fbar
 
 
-# # #  Pseudo-likelihood maximization: variance
+# # #  Pseudo-likelihood maximization
 
 # n = 5
 
