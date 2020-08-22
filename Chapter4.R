@@ -86,11 +86,19 @@ FunZDel_canlifins = function(size,seed=1){
   canlifins = canlifins[Sample,]
   
   #  c(
-  #    sum((canlifins$DeathTimeF == 0) & (canlifins$DeathTimeF == 0)), # number of doubly censored couples
+  #    sum((canlifins$DeathTimeM == 0) & (canlifins$DeathTimeF == 0)), # number of doubly censored couples
   #    sum((canlifins$DeathTimeM > 0) & (canlifins$DeathTimeF == 0)), # number of couples where only the woman is censored
   #    sum((canlifins$DeathTimeM == 0) & (canlifins$DeathTimeF > 0)), # number of couples where only the man is censored
   #    sum((canlifins$DeathTimeM > 0) & (canlifins$DeathTimeF > 0)) # number of doubly uncensored couples
   #  )
+  
+  #del1 = as.integer((canlifins$DeathTimeM > 0) & (canlifins$DeathTimeF == 0)) 
+  #del2 = as.integer((canlifins$DeathTimeM == 0) & (canlifins$DeathTimeF > 0))
+  
+  #del1=c(del1,1)
+  #del2=c(del2,1)
+  #del=del1*del2
+  del = c((canlifins$DeathTimeM > 0) & (canlifins$DeathTimeF > 0),1)
   
   canlifins[canlifins$DeathTimeM == 0,"DeathTimeM"] = max(canlifins$AnnuityExpiredM)
   canlifins[canlifins$DeathTimeF == 0,"DeathTimeF"] = max(canlifins$AnnuityExpiredM)
@@ -98,16 +106,9 @@ FunZDel_canlifins = function(size,seed=1){
   ordre = order(canlifins$DeathTimeM,canlifins$DeathTimeF)
   Z_ordered = cbind(canlifins$DeathTimeM,canlifins$DeathTimeF)[ordre,]
   
-  del1 = as.integer(canlifins$DeathTimeM > 0) 
-  del2 = as.integer(canlifins$DeathTimeF > 0)
-  
-  xinf=max(Z_ordered[,1],Z_ordered[,2])+100 # CREATING POINT AT INFINITY
+  xinf=max(Z_ordered[,1],Z_ordered[,2])+1
   Z1=c(Z_ordered[,1],xinf)
   Z2=c(Z_ordered[,2],xinf)
-  
-  del1=c(del1,1)
-  del2=c(del2,1)
-  del=del1*del2
   
   return(list(Z1,Z2,del))
 }
