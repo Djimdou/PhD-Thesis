@@ -8,7 +8,7 @@ library(CASdatasets) # dataset
 
 
 
-FunZDel = function(n,theta,lambda=1,seed=1,alpha=2,beta){
+FunZDel = function(n,theta,lambda=1,seed,alpha=2,beta){
   
   # Uniform variables with a Clayton copula joint distribution
   
@@ -20,37 +20,41 @@ FunZDel = function(n,theta,lambda=1,seed=1,alpha=2,beta){
   #alpha = 10 # Weibull distribution shape parameter
   #beta = 1.7 # Weibull distribution scale parameter
   
-  MyCopula <- mvdc(copula=claytonCopula(param=theta), # Clayton copula for F(X) and F(Y)
+  MyCopula <- mvdc(copula=claytonCopula(param=theta), # Clayton copula for (F(X), F(Y))
                    margins=c("weibull","weibull"), # Weibull distribution for margins X and Y
                    paramMargins=list(shape=alpha,scale=beta)) # alpha:shape, beta:scale
   
   set.seed(seed)
-  X <- rMvdc(n=n,MyCopula)[,1]
-  set.seed(seed)
-  Y <- rMvdc(n=n,MyCopula)[,2]
+  XY <- rMvdc(n=n,MyCopula)
+  X <- XY[,1]
+  Y <- XY[,2]
   
   #X = beta*(-log(U))**(1/alpha)
   #Y = beta*(-log(V))**(1/alpha)
   
   # Censoring variable
 
-  C = rexp(n=n,rate = lambda)
+  Cx = rexp(n=n,rate = lambda)
+  Cy = rexp(n=n,rate = lambda)
   
   # Observations
   
-  ordre = order(X,Y)
-  Z_ordered = cbind(X,Y)[ordre,]
+  Z1 <- pmin(X,Cx)
+  Z2 <- pmin(Y,Cy)
   
-  xinf=max(Z_ordered[,1],Z_ordered[,2])+100 # CREATING POINT AT INFINITY
-  Z1=c(Z_ordered[,1],xinf)
-  Z2=c(Z_ordered[,2],xinf)
+  ordre = order(Z1,Z2)
   
-  del1 = as.integer(X <= C)
-  del2 = as.integer(Y <= C)
+  xinf=max(Z1,Z2)+1 # CREATING POINT AT INFINITY
+  Z1=c(Z1[ordre],xinf)
+  Z2=c(Z2[ordre],xinf)
+  
+  del1 = as.integer(X <= Cx)
+  del2 = as.integer(Y <= Cy)
   
   del1=c(del1,1)
   del2=c(del2,1)
   del=del1*del2
+  del=del[ordre]
   
   return(list(Z1,Z2,del))
 }
@@ -98,13 +102,16 @@ FunZDel_canlifins = function(size,seed=1){
   #del1=c(del1,1)
   #del2=c(del2,1)
   #del=del1*del2
-  del = c((canlifins$DeathTimeM > 0) & (canlifins$DeathTimeF > 0),1)
   
-  canlifins[canlifins$DeathTimeM == 0,"DeathTimeM"] = max(canlifins$AnnuityExpiredM)
-  canlifins[canlifins$DeathTimeF == 0,"DeathTimeF"] = max(canlifins$AnnuityExpiredM)
+  del = c((canlifins$DeathTimeM > 0) * (canlifins$DeathTimeF > 0),1)
+  
+  #canlifins[canlifins$DeathTimeM == 0,"DeathTimeM"] = canlifins[canlifins$DeathTimeM == 0,"AnnuityExpiredM"]
+  #canlifins[canlifins$DeathTimeF == 0,"DeathTimeF"] = canlifins[canlifins$DeathTimeF == 0,"AnnuityExpiredM"]
   
   ordre = order(canlifins$DeathTimeM,canlifins$DeathTimeF)
   Z_ordered = cbind(canlifins$DeathTimeM,canlifins$DeathTimeF)[ordre,]
+  
+  del=del[ordre]
   
   xinf=max(Z_ordered[,1],Z_ordered[,2])+1
   Z1=c(Z_ordered[,1],xinf)
@@ -116,12 +123,12 @@ FunZDel_canlifins = function(size,seed=1){
 
 # # # Kendall's tau:simulated data
 
-n = 1500
+n = 1000
 Max = 1000 # number of samples for MSE 
 Tau_hat = rep(NA,times=Max)
 del_mean = rep(NA,times=Max)
 theta = 2
-beta=1.7
+beta=1.1
 
 for(m in 1:Max){
 
@@ -173,12 +180,13 @@ for(m in 1:Max){
 Tau = theta/(theta+2)
 #plot(Tau_hat,type='l',ylim=range(c(Tau_hat,Tau)));abline(h=Tau);
 
-Xlabels = seq(from=0,to=1000,by=100)
-Ylabels = seq(from=0,to=max(c(Tau_hat,Tau))+0.2,by=0.1)
-Ylim = range(c(Tau_hat,Tau))
+Xlabels = seq(from=0,to=Max)
+Ylabels = seq(from=0,to=1,by=0.2)
+Ylim = c(0,1)
 par(mfrow=c(1,1))
-plot(Tau_hat,lwd = 2,xlab="",ylab="",xaxt="none",yaxt="none")
+plot(Tau_hat,lwd = 2,xlab="",ylab="",xaxt="none",yaxt="none",ylim=Ylim)
 abline(h=Tau,col='red',lwd = 3)
+abline(h=mean(Tau_hat),col='black',lwd = 3)
 axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2.25, "iteration rank", font=2,cex=1.5)
@@ -229,8 +237,6 @@ persp(x,y,F_bar_grid, theta = 30, phi = 30)
 # McGilchrist, C. A., and C. W. Aisbett. "Regression with Frailty in Survival Analysis."
 # Biometrics, vol. 47, no. 2, 1991, pp. 461-466.
 
-#################################### USE THIS:####################################
-# For data (Z1, Z2, del1, del2), sample size = n
 
 location = 'C:/Users/djimd/OneDrive/Documents/Concordia - PhD/Thesis/McGilchrist_Aisbett-1991.pdf'
 # Data: https://rdrr.io/cran/SurvCorr/man/kidney.html
@@ -272,6 +278,7 @@ Z2=c(Z_ordered[,2],xinf)
 del1=c(del1,1)
 del2=c(del2,1)
 del=del1*del2
+del=del[ordre]
 
 az1=matrix(rep(Z1,n+1),ncol=n+1)
 az2=matrix(rep(Z2,n+1),ncol=n+1)
@@ -345,7 +352,7 @@ V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
 
 # Estimator
 
-n=500
+n=10000
 
 ZDel = FunZDel_canlifins(size=n)
 Z1 = ZDel[[1]]
