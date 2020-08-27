@@ -10,16 +10,6 @@ library(CASdatasets) # dataset
 
 FunZDel = function(n,theta,lambda=1,seed,alpha=2,beta){
   
-  # Uniform variables with a Clayton copula joint distribution
-  
-  #clayton <- claytonCopula(param=theta)
-  #U <- rCopula(n=n, clayton)[,1]
-  #V <- rCopula(n=n, clayton)[,2]
-  
-  # Weibull distribution for X and Y
-  #alpha = 10 # Weibull distribution shape parameter
-  #beta = 1.7 # Weibull distribution scale parameter
-  
   MyCopula <- mvdc(copula=claytonCopula(param=theta), # Clayton copula for (F(X), F(Y))
                    margins=c("weibull","weibull"), # Weibull distribution for margins X and Y
                    paramMargins=list(shape=alpha,scale=beta)) # alpha:shape, beta:scale
@@ -28,9 +18,6 @@ FunZDel = function(n,theta,lambda=1,seed,alpha=2,beta){
   XY <- rMvdc(n=n,MyCopula)
   X <- XY[,1]
   Y <- XY[,2]
-  
-  #X = beta*(-log(U))**(1/alpha)
-  #Y = beta*(-log(V))**(1/alpha)
   
   # Censoring variable
 
@@ -44,7 +31,7 @@ FunZDel = function(n,theta,lambda=1,seed,alpha=2,beta){
   
   ordre = order(Z1,Z2)
   
-  xinf=max(Z1,Z2)+1 # CREATING POINT AT INFINITY
+  xinf=max(Z1,Z2)+1 # point at infinity
   Z1=c(Z1[ordre],xinf)
   Z2=c(Z2[ordre],xinf)
   
@@ -66,12 +53,12 @@ LogL = function(x){
 
 # Log-pseudo-likelihood function derivative
 DiffLogL = function(x){
-  sum(phat*(rep(1/(x+1),times=n+1)-log(Fn1*Fn2)+
-              (rep(1/x**2,times=n+1))*log(Fn1**(rep(-x,times=n+1))+
-                                            Fn2**(rep(-x,times=n+1))-1)+
-              (rep(2+1/x,times=n+1))*(Fn1**(rep(-x,times=n+1))*
-                                        log(Fn1)+Fn2**(rep(-x,times=n+1))*log(Fn2))/
-              (Fn1**(rep(-x,times=n+1))+Fn2**(rep(-x,times=n+1))-1)))
+  sum(phat[1:n]*(rep(1/(x+1),times=n)-log(Fn1[1:n]*Fn2[1:n])+
+              (rep(1/x**2,times=n))*log(Fn1[1:n]**(rep(-x,times=n))+
+                                            Fn2[1:n]**(rep(-x,times=n))-1)+
+              (rep(2+1/x,times=n))*(Fn1[1:n]**(rep(-x,times=n))*log(Fn1[1:n])+
+                                    Fn2[1:n]**(rep(-x,times=n))*log(Fn2[1:n]))/
+              (Fn1[1:n]**(rep(-x,times=n))+Fn2[1:n]**(rep(-x,times=n))-1)))
 }
 
 #DiffLogL2 = function(x){
@@ -103,15 +90,12 @@ FunZDel_canlifins = function(size,seed=1){
   #del2=c(del2,1)
   #del=del1*del2
   
-  del = c((canlifins$DeathTimeM > 0) * (canlifins$DeathTimeF > 0),1)
+  del = (canlifins$DeathTimeM > 0) * (canlifins$DeathTimeF > 0)
+
+  ordre = order(canlifins$DeathTimeM+canlifins$EntryAgeM,canlifins$DeathTimeF+canlifins$EntryAgeF)
+  Z_ordered = cbind(canlifins$DeathTimeM+canlifins$EntryAgeM,canlifins$DeathTimeF+canlifins$EntryAgeF)[ordre,]
   
-  #canlifins[canlifins$DeathTimeM == 0,"DeathTimeM"] = canlifins[canlifins$DeathTimeM == 0,"AnnuityExpiredM"]
-  #canlifins[canlifins$DeathTimeF == 0,"DeathTimeF"] = canlifins[canlifins$DeathTimeF == 0,"AnnuityExpiredM"]
-  
-  ordre = order(canlifins$DeathTimeM,canlifins$DeathTimeF)
-  Z_ordered = cbind(canlifins$DeathTimeM,canlifins$DeathTimeF)[ordre,]
-  
-  del=del[ordre]
+  del=c(del[ordre],1)
   
   xinf=max(Z_ordered[,1],Z_ordered[,2])+1
   Z1=c(Z_ordered[,1],xinf)
@@ -123,12 +107,12 @@ FunZDel_canlifins = function(size,seed=1){
 
 # # # Kendall's tau:simulated data
 
-n = 1000
+n = 1500
 Max = 1000 # number of samples for MSE 
 Tau_hat = rep(NA,times=Max)
 del_mean = rep(NA,times=Max)
 theta = 2
-beta=1.1
+beta=1.7
 
 for(m in 1:Max){
 
@@ -180,16 +164,17 @@ for(m in 1:Max){
 Tau = theta/(theta+2)
 #plot(Tau_hat,type='l',ylim=range(c(Tau_hat,Tau)));abline(h=Tau);
 
-Xlabels = seq(from=0,to=Max)
+Xlabels = seq(from=0,to=Max,by=100)
 Ylabels = seq(from=0,to=1,by=0.2)
 Ylim = c(0,1)
 par(mfrow=c(1,1))
 plot(Tau_hat,lwd = 2,xlab="",ylab="",xaxt="none",yaxt="none",ylim=Ylim)
 abline(h=Tau,col='red',lwd = 3)
-abline(h=mean(Tau_hat),col='black',lwd = 3)
+#abline(h=mean(Tau_hat),col='black',lwd = 3)
 axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2.25, "iteration rank", font=2,cex=1.5)
+#legend(x=900,y=0.8,legend=c(expression(tau), expression(tau),lwd = 4,col=c("red", "black"),lty=1,cex=1.25,bty="n"))
 
 Var = var(Tau_hat)*((Max-1)/Max)
 Bias2 = (mean(Tau_hat)-Tau)**2
@@ -296,7 +281,7 @@ Id=diag(rep(1,n+1))
 M=rbind(Id-A%*%B,-t(b))
 MMinv=solve(t(M)%*%M)
 Fbar=MMinv%*%b ### <---- THIS IS THE \bar{F} VECTOR
-phat=(solve(A)%*%Fbar)[-(n+1)] # weights
+phat=(solve(A)%*%Fbar)#[-(n+1)] # weights
 
 # Variance estimator
 
@@ -320,7 +305,7 @@ F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
 
 persp(x,y,F_bar_grid, theta = 30, phi = 30)
 
-Tau = 4*(phat %*% Fbar[-(n+1)])-1
+Tau_hat = 4*(t(phat[-(n+1)]) %*% Fbar[-(n+1)])-1
 
 # # Kendall's tau variance
 
@@ -352,12 +337,13 @@ V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
 
 # Estimator
 
-n=10000
+n=5000
 
 ZDel = FunZDel_canlifins(size=n)
 Z1 = ZDel[[1]]
 Z2 = ZDel[[2]]
 del = ZDel[[3]]
+#n=length(del)-1
 
 az1=matrix(rep(Z1,n+1),ncol=n+1)
 az2=matrix(rep(Z2,n+1),ncol=n+1)
@@ -375,16 +361,16 @@ Id=diag(rep(1,n+1))
 M=rbind(Id-A%*%B,-t(b))
 MMinv=solve(t(M)%*%M)
 Fbar=MMinv%*%b ### <---- THIS IS THE \bar{F} VECTOR
-phat=(solve(A)%*%Fbar)[-(n+1)] # weights
+phat=(ginv(A)%*%Fbar)#[-(n+1)] # weights
 
 # Graph of Fbar
 
 FBarFun = function(x,y){
-  sum(phat[((Z_ordered[,1] >= x)*(Z_ordered[,2] >= y))])
+  sum(phat[((Z1 >= x)*(Z2 >= y))])
 }
 
-x = unique(Z_ordered[order(Z_ordered[,1]),1])
-y = unique(Z_ordered[order(Z_ordered[,2]),2])
+x = unique(Z1[order(Z1)])
+y = unique(Z2[order(Z2)])
 F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
 
 persp(x,y,F_bar_grid, theta = 30, phi = 30)
@@ -401,7 +387,7 @@ V=(MMinv%*%U)%*%MMinv
 
 # # Kendall's tau estimate
 
-Tau_hat = 4*(phat %*% Fbar[-(n+1)])-1
+Tau_hat = 4*(t(phat)[-(n+1)] %*% Fbar[-(n+1)])-1
 
 # # Kendall's tau variance
 
@@ -430,7 +416,7 @@ theta = 2
 for(i in 1:length(n_vect)){
   
   n = n_vect[i]
-  ZDel = FunZDel(n=n,theta=theta,seed=i)
+  ZDel = FunZDel(n=n,theta=theta,beta=1.7,seed=i)
   Z1 = ZDel[[1]]
   Z2 = ZDel[[2]]
   del = ZDel[[3]]
@@ -455,8 +441,8 @@ for(i in 1:length(n_vect)){
   
   # Starting point of Newton-Raphson
   
-  Tau = 4*(t(phat[-(n+1)]) %*% Fbar[-(n+1)])-1
-  Theta0 = 2*Tau/(1-Tau)
+  Tau_hat = 4*(t(phat[-(n+1)]) %*% Fbar[-(n+1)])-1
+  Theta0 = 2*Tau_hat/(1-Tau_hat)
   
   # # MLE of theta
   
@@ -473,27 +459,29 @@ for(i in 1:length(n_vect)){
 
   M=rbind(Id-A%*%B,-t(b))
   MMinv=solve(t(M)%*%M)
-  Fn1= 1-MMinv%*%b 
-  Fn1[Fn1<=10**(-5)]=min(Fn1[Fn1>=10**(-5)])
+  Fn1= MMinv%*%b#1-MMinv%*%b 
+  #Fn1[Fn1<=10**(-10)]=min(Fn1[Fn1>=10**(-10)])
   
   # Fn2
   
-  az2=matrix(rep(Z2,n+1),ncol=n+1)
+  Z2_ordered = Z2[order(Z2)]
+  az2=matrix(rep(Z2_ordered,n+1),ncol=n+1)
   A=t(az2)>=az2
   
   A[lower.tri(A, diag = FALSE)] = 0
   rsumA=apply(A,1,sum)
   
-  b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+  del2 = del[order(Z2)]
+  b=c((1-eps)*del2[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
   B=diag(b)
   
   M=rbind(Id-A%*%B,-t(b))
   MMinv=solve(t(M)%*%M)
-  Fn2=1-MMinv%*%b
-  Fn2[Fn2<=10**(-5)]=min(Fn2[Fn2>=10**(-5)])
+  Fn2=MMinv%*%b #1-MMinv%*%b
+  #Fn2[Fn2<=10**(-10)]=min(Fn2[Fn2>=10**(-10)])
 
-  # x=matrix(seq(from=0.01,to=5,by=0.1)); ForPlot=apply(X=x,MARGIN=1,FUN=DiffLogL);
-  # plot(x,ForPlot,type='l',ylim=range(c(ForPlot,0)));abline(h=0);
+  #x=matrix(seq(from=0.01,to=50,by=0.1)); ForPlot=apply(X=x,MARGIN=1,FUN=DiffLogL);
+  #plot(x,ForPlot,type='l',ylim=range(c(ForPlot,0)));abline(h=0);
   
   # MLE estimate of theta
   # theta_hat[i] = optimise(f=LogL,interval=c(0,10**2),maximum = TRUE)$maximum
@@ -537,7 +525,8 @@ R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
 U=(t(M)%*%R)%*%M
 V_z0=(MMinv%*%U)%*%MMinv
 
-az2=matrix(rep(Z2,n+1),ncol=n+1)
+Z2_ordered = Z2[order(Z2)]
+az2=matrix(rep(Z2_ordered,n+1),ncol=n+1)
 A=(t(az2)>=az2)
 A[lower.tri(A, diag = FALSE)] = 0
 rsumA=apply(A,1,sum)
