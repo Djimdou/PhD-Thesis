@@ -2,13 +2,14 @@ library(tabulizer)
 library(MASS) # for ginv
 library(dplyr)
 library(copula) # for claytonCopula
-#install.packages('pracma')
 library(pracma) # for NewtonRaphson procedure
 library(CASdatasets) # dataset 
 
-
+# # # Functions
 
 FunZDel = function(n,theta,lambda=1,seed,alpha=2,beta){
+  
+  require(copula)
   
   MyCopula <- mvdc(copula=claytonCopula(param=theta), # Clayton copula for (F(X), F(Y))
                    margins=c("weibull","weibull"), # Weibull distribution for margins X and Y
@@ -51,26 +52,13 @@ LogL = function(x){
   sum(phat*(log(x+1)-(x+1)*log(Fn1*Fn2)-(2+1/x)*log(Fn1**(-x)+Fn2**(-x)-1)))
 }
 
-# Log-pseudo-likelihood function derivative
-DiffLogL = function(x){
-  sum(phat[1:n]*(rep(1/(x+1),times=n)-log(Fn1[1:n]*Fn2[1:n])+
-              (rep(1/x**2,times=n))*log(Fn1[1:n]**(rep(-x,times=n))+
-                                            Fn2[1:n]**(rep(-x,times=n))-1)+
-              (rep(2+1/x,times=n))*(Fn1[1:n]**(rep(-x,times=n))*log(Fn1[1:n])+
-                                    Fn2[1:n]**(rep(-x,times=n))*log(Fn2[1:n]))/
-              (Fn1[1:n]**(rep(-x,times=n))+Fn2[1:n]**(rep(-x,times=n))-1)))
-}
-
-#DiffLogL2 = function(x){
-#  sum(phat*(1/(x+1)-log(Fn1*Fn2)+(1/x**2)*log(Fn1**(-x)+Fn2**(-x)-1)
-#            +(2+1/x)*(Fn1**(-x)*log(Fn1) +  Fn2**(-x)*log(Fn2))/(Fn1**(-x)+Fn2**(-x)-1)))
-#}
-
 
 FunZDel_canlifins = function(size,seed=1){
   
   data(canlifins) # load the dataset
   # 14,889 contracts where one annuitant is male and the other female
+  
+  canlifins = canlifins[(canlifins$EntryAgeM>=20)&(canlifins$EntryAgeF>=20),]
   
   set.seed(seed)
   Sample = sample(1:dim(canlifins)[1],size = size)
@@ -103,6 +91,224 @@ FunZDel_canlifins = function(size,seed=1){
   
   return(list(Z1,Z2,del))
 }
+
+Fun_ThetaHatFn12 <- function(Z1,Z2,del,n,phat,Fbar){
+  
+  # Starting point of Newton-Raphson
+  
+  Tau_hat = 4*(t(phat) %*% Fbar)-1
+  Theta0 = 2*Tau_hat/(1-Tau_hat)
+  
+  # # MLE of theta
+  
+  # Fn1
+  
+  az1=matrix(rep(Z1,n+1),ncol=n+1)
+  A=t(az1)>=az1
+  
+  A[lower.tri(A, diag = FALSE)] = 0
+  rsumA=apply(A,1,sum)
+  
+  b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+  B=diag(b)
+  
+  M=rbind(Id-A%*%B,-t(b))
+  MMinv=solve(t(M)%*%M)
+  Fn1=as.vector(MMinv%*%b)
+  
+  # Fn2
+  
+  Z2_ordered = Z2[order(Z2)]
+  az2=matrix(rep(Z2_ordered,n+1),ncol=n+1)
+  A=t(az2)>=az2
+  
+  A[lower.tri(A, diag = FALSE)] = 0
+  rsumA=apply(A,1,sum)
+  
+  del2 = del[order(Z2)]
+  b=c((1-eps)*del2[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+  B=diag(b)
+  
+  M=rbind(Id-A%*%B,-t(b))
+  MMinv=solve(t(M)%*%M)
+  Fn2=as.vector(MMinv%*%b)
+  
+  #x=matrix(seq(from=0.01,to=50,by=0.1)); ForPlot=apply(X=x,MARGIN=1,FUN=DiffLogL);
+  #plot(x,ForPlot,type='l',ylim=range(c(ForPlot,0)));abline(h=0);
+  
+  # MLE estimate of theta
+  # theta_hat[i] = optimise(f=LogL,interval=c(0,10**2),maximum = TRUE)$maximum
+  
+  Fn1=Fn1[-(n+1)]
+  Fn2=Fn2[-(n+1)]
+  
+  # Log-pseudo-likelihood function derivative
+  DiffLogL = function(x){
+    sum(phat*(rep(1/(x+1),times=n)-log(Fn1*Fn2)+
+                     (rep(1/x**2,times=n))*log(Fn1**(rep(-x,times=n))+
+                                                 Fn2**(rep(-x,times=n))-1)+
+                     (rep(2+1/x,times=n))*(Fn1**(rep(-x,times=n))*log(Fn1)+
+                                             Fn2**(rep(-x,times=n))*log(Fn2))/
+                     (Fn1**(rep(-x,times=n))+Fn2**(rep(-x,times=n))-1)))
+  }
+  
+  theta_hat = newtonRaphson(fun=DiffLogL, x0=Theta0)$root
+  #theta_hat[i] = uniroot(f=DiffLogL2, interval=c(0.01,10**2))$root
+  
+  # Coding Newton-Raphson:
+  # https://rpubs.com/aaronsc32/newton-raphson-method#:~:text=%23%23%20%5B1%5D%203.162278-,Newton%2DRaphson%20Method%20in%20R,rootSolve%20package%20features%20the%20uniroot.
+  
+  return(list(theta_hat,Fn1,Fn2))
+} 
+
+Fun_VarMLE <- function(Z1,Z2,del,theta_hat,Fn1,Fn2){
+  
+  # # Variance of An
+  
+  # Phi
+  
+  Phi = 1/(theta_hat+1)-log(Fn1*Fn2)+(1/theta_hat**2)*log(Fn1**(-theta_hat)+Fn2**(-theta_hat)-1)-
+    (2+1/theta_hat)*(-Fn1**(-theta_hat)*log(Fn1)-Fn2**(-theta_hat)*log(Fn2))/(Fn1**(-theta_hat)+Fn2**(-theta_hat)-1)
+  
+  # VStar
+  
+  az1=matrix(rep(Z1,n+1),ncol=n+1)
+  A=(t(az1)>=az1)
+  A[lower.tri(A, diag = FALSE)] = 0
+  rsumA=apply(A,1,sum)
+  
+  b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+  B=diag(b)
+  
+  M=rbind(Id-A%*%B,-t(b))
+  MMinv=solve(t(M)%*%M)
+  Fbar=as.vector(MMinv%*%b)
+  
+  Fbar=Fbar[-(n+1)]
+  b=b[-(n+1)]
+  A=A[-(n+1),][,-(n+1)]
+  B=B[-(n+1),][,-(n+1)]
+  Id=diag(1,n)
+  M=rbind(Id-A%*%B,-t(b))
+  MMinv=solve(t(M)%*%M)
+  
+  D=(1-A)*(1-t(A))*(A%*%t(A))
+  bf=b*Fbar
+  BF=diag(bf)
+  S=rbind(A%*%BF,t(bf))
+  R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
+  U=(t(M)%*%R)%*%M
+  V_z0=(MMinv%*%U)%*%MMinv
+  #V_z0=V_z0[-(n+1),][,-(n+1)]
+  
+  Z2_ordered = Z2[order(Z2)]
+  az2=matrix(rep(Z2_ordered,n+1),ncol=n+1)
+  A=(t(az2)>=az2)
+  A[lower.tri(A, diag = FALSE)] = 0
+  rsumA=apply(A,1,sum)
+  
+  del = del[order(Z2)]
+  
+  b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+  B=diag(b)
+  Id=diag(1,n+1)
+  
+  M=rbind(Id-A%*%B,-t(b))
+  MMinv=solve(t(M)%*%M)
+  Fbar=as.vector(MMinv%*%b)
+  
+  Fbar=Fbar[-(n+1)]
+  b=b[-(n+1)]
+  A=A[-(n+1),][,-(n+1)]
+  B=B[-(n+1),][,-(n+1)]
+  Id=diag(1,n)
+  M=rbind(Id-A%*%B,-t(b))
+  MMinv=solve(t(M)%*%M)
+  
+  D=(1-A)*(1-t(A))*(A%*%t(A))
+  bf=b*Fbar
+  BF=diag(bf)
+  S=rbind(A%*%BF,t(bf))
+  R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
+  U=(t(M)%*%R)%*%M
+  V_0z=(MMinv%*%U)%*%MMinv
+  #V_0z=V_0z[-(n+1),][,-(n+1)]
+  
+  PhiStar1  = -1/Fn1-(1/theta_hat)*(Fn1**(-theta_hat-1)/(Fn1**(-theta_hat)+Fn2**(-theta_hat)-1))+
+    (2+1/theta_hat)*Fn1**(-theta_hat-1)*((Fn1**(-theta_hat)+Fn2**(-theta_hat)-1)*(-theta_hat*log(Fn1)+1)+
+                                           theta_hat*Fn1**(-theta_hat)*log(Fn1))/(Fn1**(-theta_hat)+Fn2**(-theta_hat)-1)**2
+  
+  PhiStar2  = -1/Fn2-(1/theta_hat)*(Fn2**(-theta_hat-1)/(Fn1**(-theta_hat)+Fn2**(-theta_hat)-1))+
+    (2+1/theta_hat)*Fn1**(-theta_hat-1)*((Fn1**(-theta_hat)+Fn2**(-theta_hat)-1)*(-theta_hat*log(Fn2)+1)+
+                                           theta_hat*Fn1**(-theta_hat)*log(Fn2))/(Fn1**(-theta_hat)+Fn2**(-theta_hat)-1)**2
+  
+  PhiStar1_matrix = matrix(rep(PhiStar1,times=n),ncol=n)
+  PhiStar2_matrix = matrix(rep(PhiStar2,times=n),ncol=n)
+  
+  VStar = V_z0*PhiStar1_matrix + V_0z*PhiStar2_matrix
+  
+  # R_hat
+  
+  az1=matrix(rep(Z1,n+1),ncol=n+1)
+  az2=matrix(rep(Z2,n+1),ncol=n+1)
+  A=(t(az1)>=az1)*(t(az2)>=az2)
+  A[lower.tri(A, diag = FALSE)] = 0
+  rsumA=apply(A,1,sum)
+  
+  b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+  B=diag(b)
+  
+  Id=diag(rep(1,n+1))
+  M=rbind(Id-A%*%B,-t(b))
+  MMinv=solve(t(M)%*%M)
+  Fbar=as.vector(MMinv%*%b)
+  
+  Fbar=Fbar[-(n+1)]
+  b=b[-(n+1)]
+  A=A[-(n+1),][,-(n+1)]
+  B=B[-(n+1),][,-(n+1)]
+  Id=diag(1,n)
+  M=rbind(Id-A%*%B,-t(b))
+  MMinv=solve(t(M)%*%M)
+  
+  D=(1-A)*(1-t(A))*(A%*%t(A))
+  
+  Matrix1 = rbind(Id - A%*%B,-b)
+  
+  Matrix3 = (rbind(A%*%B%*%diag(Fbar),b%*%diag(Fbar)))%*%(diag(1,n) + B%*%D%*%B)%*%(diag(Fbar)%*%B%*%(Phi*PhiStar1))
+  Matrix4 = (rbind(A%*%B%*%diag(Fbar),b%*%diag(Fbar)))%*%(diag(1,n) + B%*%D%*%B)%*%(diag(Fbar)%*%B%*%(Phi*PhiStar2))
+  
+  r1_hat = ginv(Matrix1)%*%Matrix3
+  r2_hat = ginv(Matrix1)%*%Matrix4
+  
+  # e_hat
+  
+  Matrix5 = (rbind(A%*%B%*%diag(Fbar),b%*%diag(Fbar)))%*%(diag(1,n) + B%*%D%*%B)%*%(diag(Fbar)%*%B%*%(Phi*Phi))
+  
+  e_hat = ginv(Matrix1)%*%Matrix5
+  
+  # V (variance of Fbar)
+  
+  V=(MMinv%*%U)%*%MMinv
+  
+  # Var(An)
+  
+  Var_An = t(PhiStar1)%*%diag(Fbar)%*%B%*%V%*%B%*%diag(Fbar)%*%PhiStar2+
+    2*b%*%VStar%*%diag(Fbar)%*%b+
+    2*t(r1_hat+r2_hat)%*%diag(Fbar)%*%b+
+    t(Phi)%*%B%*%V%*%B%*%Phi+
+    2*b%*%e_hat+
+    t(Phi)%*%B%*%diag(Fbar)%*%(diag(Fbar)%*%b+B%*%D%*%B%*%diag(Fbar)%*%B%*%Phi)
+  
+  # # Variance of sqrt(n)(theta_hat - theta)
+  
+  VarTheta = Var_An/(t(Phi)**2%*%Fbar)
+  
+  return(VarTheta)
+  
+}
+
+
 
 
 # # # Kendall's tau:simulated data
@@ -140,18 +346,21 @@ for(m in 1:Max){
   Id=diag(rep(1,n+1))
   M=rbind(Id-A%*%B,-t(b))
   MMinv=solve(t(M)%*%M)
-  Fbar=MMinv%*%b
+  Fbar=as.vector(MMinv%*%b)
   
   # The function 'solve' has some trouble sinverting some A's for n >= 1500
   # (example with seed=4). 'ginv' can do it, but is more time consuming. 
   # A tradeoff is to use ginv where solve fails. 
   
-  if("try-error" %in% class(try(solve(A)))){
-    phat=(ginv(A)%*%Fbar)
-  } else {
-    phat=(solve(A)%*%Fbar)#[-(n+1)]
-  }
+  #if("try-error" %in% class(try(solve(A)))){
+  #  phat=(ginv(A)%*%Fbar)
+  #} else {
+   phat=(solve(A)%*%Fbar)#[-(n+1)]
+  #}
   
+   phat=phat[-(n+1)]
+   Fbar=Fbar[-(n+1)]
+   
   # # Kendall tau estimate
   
   Tau_hat[m] = 4*(t(phat) %*% Fbar)-1
@@ -183,6 +392,13 @@ MSE=Var+Bias2
 
 # Fbar Variance
 
+b=b[-(n+1)]
+A=A[-(n+1),][,-(n+1)]
+B=B[-(n+1),][,-(n+1)]
+Id=diag(1,n)
+M=rbind(Id-A%*%B,-t(b))
+MMinv=solve(t(M)%*%M)
+
 D=(1-A)*(1-t(A))*(A%*%t(A))
 bf=b*Fbar
 BF=diag(bf[1:(n+1)])
@@ -193,14 +409,14 @@ V=(MMinv%*%U)%*%MMinv
 
 # # Kendall's tau variance
 
-Matrix1 = rbind(diag(1,n+1) - A%*%B,-b)
-Matrix2 = (rbind(A%*%B%*%diag(as.vector(Fbar)),b%*%diag(as.vector(Fbar))))%*%(diag(1,n+1) + B%*%D%*%B)%*%(diag(as.vector(Fbar))%*%B%*%Fbar)
+Matrix1 = rbind(Id - A%*%B,-b)
+Matrix2 = (rbind(A%*%B%*%diag(Fbar),b%*%diag(Fbar)))%*%(Id + B%*%D%*%B)%*%(diag(Fbar)%*%B%*%Fbar)
 
 W_hat = ginv(Matrix1)%*%Matrix2
 
 V_tau = 4**2*(t(Fbar)%*%B%*%V%*%B%*%Fbar+
   2*t(Fbar)%*%B%*%W_hat+
-  t(Fbar)%*%B%*%diag(as.vector(Fbar))%*%(diag(1,n+1)+B%*%D%*%B)%*%diag(as.vector(Fbar))%*%B%*%Fbar)
+  t(Fbar)%*%B%*%diag(Fbar)%*%(Id+B%*%D%*%B)%*%diag(Fbar)%*%B%*%Fbar)
 
 # # Graphic for Fbar 
 
@@ -280,14 +496,24 @@ B=diag(b)
 Id=diag(rep(1,n+1))
 M=rbind(Id-A%*%B,-t(b))
 MMinv=solve(t(M)%*%M)
-Fbar=MMinv%*%b ### <---- THIS IS THE \bar{F} VECTOR
+Fbar=as.vector(MMinv%*%b) ### <---- THIS IS THE \bar{F} VECTOR
 phat=(solve(A)%*%Fbar)#[-(n+1)] # weights
+
 
 # Variance estimator
 
+Fbar=Fbar[-(n+1)]
+phat=phat[-(n+1)]
+b=b[-(n+1)]
+A=A[-(n+1),][,-(n+1)]
+B=B[-(n+1),][,-(n+1)]
+Id=diag(1,n)
+M=rbind(Id-A%*%B,-t(b))
+MMinv=solve(t(M)%*%M)
+
 D=(1-A)*(1-t(A))*(A%*%t(A))
 bf=b*Fbar
-BF=diag(bf[1:(n+1)])
+BF=diag(bf)
 S=rbind(A%*%BF,t(bf))
 R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
 U=(t(M)%*%R)%*%M
@@ -309,14 +535,14 @@ Tau_hat = 4*(t(phat[-(n+1)]) %*% Fbar[-(n+1)])-1
 
 # # Kendall's tau variance
 
-Matrix1 = rbind(diag(1,n+1) - A%*%B,-b)
-Matrix2 = (rbind(A%*%B%*%diag(as.vector(Fbar)),b%*%diag(as.vector(Fbar))))%*%(diag(1,n+1) + B%*%D%*%B)%*%(diag(as.vector(Fbar))%*%B%*%Fbar)
+Matrix1 = rbind(Id - A%*%B,-b)
+Matrix2 = (rbind(A%*%B%*%diag(Fbar),b%*%diag(Fbar)))%*%(Id + B%*%D%*%B)%*%(diag(Fbar)%*%B%*%Fbar)
 
 W_hat = ginv(Matrix1)%*%Matrix2
 
 V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
         2*t(Fbar)%*%B%*%W_hat+
-        t(Fbar)%*%B%*%diag(as.vector(Fbar))%*%(diag(1,n+1)+B%*%D%*%B)%*%diag(as.vector(Fbar))%*%B%*%Fbar
+        t(Fbar)%*%B%*%diag(Fbar)%*%(Id+B%*%D%*%B)%*%diag(Fbar)%*%B%*%Fbar
 
 
 
@@ -337,13 +563,25 @@ V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
 
 # Estimator
 
-n=5000
+n=500
 
 ZDel = FunZDel_canlifins(size=n)
 Z1 = ZDel[[1]]
 Z2 = ZDel[[2]]
 del = ZDel[[3]]
-#n=length(del)-1
+
+# Graph of the dependence between the two lifetimes
+
+Xlabels = Ylabels = seq(from=0,to=110,by=20)
+Xlim = Ylim = range(c(Z1[-(n+1)],Z2[-(n+1)]))
+par(mfrow=c(1,1))
+plot(Z1[-(n+1)],Z2[-(n+1)],lwd = 2,xlab="",ylab="",xaxt="none",yaxt="none",xlim=Xlim,ylim=Ylim)
+axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
+axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
+mtext(side=1, line=2.25, "male lifetime", font=1,cex=1.25)
+mtext(side=2, line=2.25, "female lifetime", font=1,cex=1.25)
+
+# Phat and Fbar
 
 az1=matrix(rep(Z1,n+1),ncol=n+1)
 az2=matrix(rep(Z2,n+1),ncol=n+1)
@@ -360,7 +598,7 @@ B=diag(b)
 Id=diag(rep(1,n+1))
 M=rbind(Id-A%*%B,-t(b))
 MMinv=solve(t(M)%*%M)
-Fbar=MMinv%*%b ### <---- THIS IS THE \bar{F} VECTOR
+Fbar=as.vector(MMinv%*%b) ### <---- THIS IS THE \bar{F} VECTOR
 phat=(ginv(A)%*%Fbar)#[-(n+1)] # weights
 
 # Graph of Fbar
@@ -375,11 +613,25 @@ F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
 
 persp(x,y,F_bar_grid, theta = 30, phi = 30)
 
+# #  Pseudo-likelihood maximization
+
+ThetaFn12 = Fun_ThetaHatFn12(Z1,Z2,del,n,phat,Fbar)
+theta_hat = ThetaFn12[[1]]
+
 # Variance estimator
+
+Fbar=Fbar[-(n+1)]
+phat=phat[-(n+1)]
+b=b[-(n+1)]
+A=A[-(n+1),][,-(n+1)]
+B=B[-(n+1),][,-(n+1)]
+Id=diag(1,n)
+M=rbind(Id-A%*%B,-t(b))
+MMinv=solve(t(M)%*%M)
 
 D=(1-A)*(1-t(A))*(A%*%t(A))
 bf=b*Fbar
-BF=diag(bf[1:(n+1)])
+BF=diag(bf)
 S=rbind(A%*%BF,t(bf))
 R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
 U=(t(M)%*%R)%*%M
@@ -392,31 +644,38 @@ Tau_hat = 4*(t(phat)[-(n+1)] %*% Fbar[-(n+1)])-1
 # # Kendall's tau variance
 
 Matrix1 = rbind(diag(1,n+1) - A%*%B,-b)
-Matrix2 = (rbind(A%*%B%*%diag(as.vector(Fbar)),b%*%diag(as.vector(Fbar))))%*%(diag(1,n+1) + B%*%D%*%B)%*%(diag(as.vector(Fbar))%*%B%*%Fbar)
+Matrix2 = (rbind(A%*%B%*%diag(Fbar),b%*%diag(Fbar)))%*%(diag(1,n+1) + B%*%D%*%B)%*%(diag(Fbar)%*%B%*%Fbar)
 
 W_hat = ginv(Matrix1)%*%Matrix2
 
 V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
   2*t(Fbar)%*%B%*%W_hat+
-  t(Fbar)%*%B%*%diag(as.vector(Fbar))%*%(diag(1,n+1)+B%*%D%*%B)%*%diag(as.vector(Fbar))%*%B%*%Fbar
+  t(Fbar)%*%B%*%diag(Fbar)%*%(diag(1,n+1)+B%*%D%*%B)%*%diag(Fbar)%*%B%*%Fbar
 
+# # MLE and variance
 
-# # #  Pseudo-likelihood maximization
+#theta_hat = ThetaFn12[[1]]
+Fn1 = ThetaFn12[[2]]
+Fn2 = ThetaFn12[[3]]
 
-# n = 5
+VarThetaHat = Fun_VarMLE(Z1=Z1,Z2=Z2,del=del,theta_hat=as.vector(theta_hat),Fn1=Fn1,Fn2=Fn2)
 
-n_vect = seq(from=100,to=1500,by=100)
+# # #  Simulation
 
-theta_hat = rep(NA,length(n_vect))
+# # Convergence of the stimator
 
-#lambda = 1/4 # check
+n_vect = seq(from=100,to=500,by=10)
 
-theta = 2
+theta_hat_vect = rep(NA,length(n_vect))
+
+theta = 1
+
+beta = 1
 
 for(i in 1:length(n_vect)){
   
   n = n_vect[i]
-  ZDel = FunZDel(n=n,theta=theta,beta=1.7,seed=i)
+  ZDel = FunZDel(n=n,theta=theta,beta=beta,seed=i)
   Z1 = ZDel[[1]]
   Z2 = ZDel[[2]]
   del = ZDel[[3]]
@@ -436,182 +695,58 @@ for(i in 1:length(n_vect)){
   Id=diag(rep(1,n+1))
   M=rbind(Id-A%*%B,-t(b))
   MMinv=solve(t(M)%*%M)
-  Fbar=MMinv%*%b 
+  Fbar=as.vector(MMinv%*%b) 
   phat=(solve(A)%*%Fbar)
   
-  # Starting point of Newton-Raphson
-  
-  Tau_hat = 4*(t(phat[-(n+1)]) %*% Fbar[-(n+1)])-1
-  Theta0 = 2*Tau_hat/(1-Tau_hat)
-  
-  # # MLE of theta
-  
-  # Fn1
-  
-  az1=matrix(rep(Z1,n+1),ncol=n+1)
-  A=t(az1)>=az1
-  
-  A[lower.tri(A, diag = FALSE)] = 0
-  rsumA=apply(A,1,sum)
-
-  b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
-  B=diag(b)
-
-  M=rbind(Id-A%*%B,-t(b))
-  MMinv=solve(t(M)%*%M)
-  Fn1= MMinv%*%b#1-MMinv%*%b 
-  #Fn1[Fn1<=10**(-10)]=min(Fn1[Fn1>=10**(-10)])
-  
-  # Fn2
-  
-  Z2_ordered = Z2[order(Z2)]
-  az2=matrix(rep(Z2_ordered,n+1),ncol=n+1)
-  A=t(az2)>=az2
-  
-  A[lower.tri(A, diag = FALSE)] = 0
-  rsumA=apply(A,1,sum)
-  
-  del2 = del[order(Z2)]
-  b=c((1-eps)*del2[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
-  B=diag(b)
-  
-  M=rbind(Id-A%*%B,-t(b))
-  MMinv=solve(t(M)%*%M)
-  Fn2=MMinv%*%b #1-MMinv%*%b
-  #Fn2[Fn2<=10**(-10)]=min(Fn2[Fn2>=10**(-10)])
-
-  #x=matrix(seq(from=0.01,to=50,by=0.1)); ForPlot=apply(X=x,MARGIN=1,FUN=DiffLogL);
-  #plot(x,ForPlot,type='l',ylim=range(c(ForPlot,0)));abline(h=0);
-  
-  # MLE estimate of theta
-  # theta_hat[i] = optimise(f=LogL,interval=c(0,10**2),maximum = TRUE)$maximum
-  theta_hat[i] = newtonRaphson(fun=DiffLogL, x0=Theta0)$root
-  #theta_hat[i] = uniroot(f=DiffLogL2, interval=c(0.01,10**2))$root
-  
-  # Coding Newton-Raphson:
-  # https://rpubs.com/aaronsc32/newton-raphson-method#:~:text=%23%23%20%5B1%5D%203.162278-,Newton%2DRaphson%20Method%20in%20R,rootSolve%20package%20features%20the%20uniroot.
+  theta_hat_vect[i] = Fun_ThetaHat(Z1,Z2,del,n,phat,Fbar)
   
 }
 
 # plot(theta_hat,type='l',ylim=range(c(theta_hat,theta)));abline(h=theta);
 
-# # Variance of An
 
-# Phi
+# # MLE and variance
 
-Phi = 1/(theta_hat[i]+1)-log(Fn1*Fn2)+(1/theta_hat[i]**2)*log(Fn1**(-theta_hat[i])+Fn2**(-theta_hat[i])-1)-
-  (2+1/theta_hat[i])*(-Fn1**(-theta_hat[i])*log(Fn1)-Fn2**(-theta_hat[i])*log(Fn2))/(Fn1**(-theta_hat[i])+Fn2**(-theta_hat[i])-1)
+theta_vect = exp(seq(from=0.1,to=1,by=0.1))-1
+VarThetaHat = rep(NA,times=length(theta_vect))
 
-# VStar
+beta = 2
+n=100
 
-az1=matrix(rep(Z1,n+1),ncol=n+1)
-A=(t(az1)>=az1)
-A[lower.tri(A, diag = FALSE)] = 0
-rsumA=apply(A,1,sum)
+for(j in 1:length(theta_vect)){
+  
+  ZDel = FunZDel(n=n,theta=theta_vect[j],beta=beta,seed=j)
+  Z1 = ZDel[[1]]
+  Z2 = ZDel[[2]]
+  del = ZDel[[3]]
+  
+  az1=matrix(rep(Z1,n+1),ncol=n+1)
+  az2=matrix(rep(Z2,n+1),ncol=n+1)
+  A=(t(az1)>=az1)*(t(az2)>=az2)
+  # Because of ties, A may not be quite upper triangular. We need to convert some numbers to 0.
+  A[lower.tri(A, diag = FALSE)] = 0
+  rsumA=apply(A,1,sum)
+  
+  eps=1/(n+1)
+  
+  b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+  B=diag(b)
+  
+  Id=diag(rep(1,n+1))
+  M=rbind(Id-A%*%B,-t(b))
+  MMinv=solve(t(M)%*%M)
+  Fbar=as.vector(MMinv%*%b) 
+  phat=(solve(A)%*%Fbar)
+  
+  Fbar=Fbar[-(n+1)]
+  phat=phat[-(n+1)]
+  
+  ThetaFn12 = Fun_ThetaHatFn12(Z1,Z2,del,n,phat,Fbar)
+  
+  theta_hat = as.vector(ThetaFn12[[1]])
+  Fn1 = ThetaFn12[[2]]
+  Fn2 = ThetaFn12[[3]]
+  
+  VarThetaHat[j] = Fun_VarMLE(Z1=Z1,Z2=Z2,del=del,theta_hat=theta_hat,Fn1=Fn1,Fn2=Fn2)
+}
 
-b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
-B=diag(b)
-
-M=rbind(Id-A%*%B,-t(b))
-MMinv=solve(t(M)%*%M)
-Fbar=MMinv%*%b
-phat=(solve(A)%*%Fbar)[-(n+1)]
-
-D=(1-A)*(1-t(A))*(A%*%t(A))
-bf=b*Fbar
-BF=diag(bf[1:(n+1)])
-S=rbind(A%*%BF,t(bf))
-R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
-U=(t(M)%*%R)%*%M
-V_z0=(MMinv%*%U)%*%MMinv
-
-Z2_ordered = Z2[order(Z2)]
-az2=matrix(rep(Z2_ordered,n+1),ncol=n+1)
-A=(t(az2)>=az2)
-A[lower.tri(A, diag = FALSE)] = 0
-rsumA=apply(A,1,sum)
-
-b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
-B=diag(b)
-
-M=rbind(Id-A%*%B,-t(b))
-MMinv=solve(t(M)%*%M)
-Fbar=MMinv%*%b ### <---- THIS IS THE \bar{F} VECTOR
-phat=(solve(A)%*%Fbar)[-(n+1)] # weights
-
-D=(1-A)*(1-t(A))*(A%*%t(A))
-bf=b*Fbar
-BF=diag(bf[1:(n+1)])
-S=rbind(A%*%BF,t(bf))
-R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
-U=(t(M)%*%R)%*%M
-V_0z=(MMinv%*%U)%*%MMinv
-
-PhiStar1  = -1/Fn1-(1/theta_hat[i])*(Fn1**(-theta_hat[i]-1)/(Fn1**(-theta_hat[i])+Fn2**(-theta_hat[i])-1))+
-  (2+1/theta_hat[i])*Fn1**(-theta_hat[i]-1)*((Fn1**(-theta_hat[i])+Fn2**(-theta_hat[i])-1)*(-theta_hat[i]*log(Fn1)+1)+
-  theta_hat[i]*Fn1**(-theta_hat[i])*log(Fn1))/(Fn1**(-theta_hat[i])+Fn2**(-theta_hat[i])-1)**2
-
-PhiStar2  = -1/Fn2-(1/theta_hat[i])*(Fn2**(-theta_hat[i]-1)/(Fn1**(-theta_hat[i])+Fn2**(-theta_hat[i])-1))+
-  (2+1/theta_hat[i])*Fn1**(-theta_hat[i]-1)*((Fn1**(-theta_hat[i])+Fn2**(-theta_hat[i])-1)*(-theta_hat[i]*log(Fn2)+1)+
-                                               theta_hat[i]*Fn1**(-theta_hat[i])*log(Fn2))/(Fn1**(-theta_hat[i])+Fn2**(-theta_hat[i])-1)**2
-
-PhiStar1_matrix = matrix(rep(PhiStar1,times=n+1),ncol=n+1)
-PhiStar2_matrix = matrix(rep(PhiStar2,times=n+1),ncol=n+1)
-
-VStar = V_z0*PhiStar1_matrix + V_0z*PhiStar2_matrix
-
-# R_hat
-
-az1=matrix(rep(Z1,n+1),ncol=n+1)
-az2=matrix(rep(Z2,n+1),ncol=n+1)
-A=(t(az1)>=az1)*(t(az2)>=az2)
-A[lower.tri(A, diag = FALSE)] = 0
-rsumA=apply(A,1,sum)
-
-b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
-B=diag(b)
-
-Id=diag(rep(1,n+1))
-M=rbind(Id-A%*%B,-t(b))
-MMinv=solve(t(M)%*%M)
-Fbar=MMinv%*%b
-phat=(solve(A)%*%Fbar)
-
-D=(1-A)*(1-t(A))*(A%*%t(A))
-
-Matrix1 = rbind(diag(1,n+1) - A%*%B,-b)
-
-Matrix3 = (rbind(A%*%B%*%diag(as.vector(Fbar)),b%*%diag(as.vector(Fbar))))%*%(diag(1,n+1) + B%*%D%*%B)%*%(diag(as.vector(Fbar))%*%B%*%(Phi*PhiStar1))
-Matrix4 = (rbind(A%*%B%*%diag(as.vector(Fbar)),b%*%diag(as.vector(Fbar))))%*%(diag(1,n+1) + B%*%D%*%B)%*%(diag(as.vector(Fbar))%*%B%*%(Phi*PhiStar2))
-
-r1_hat = ginv(Matrix1)%*%Matrix3
-r2_hat = ginv(Matrix1)%*%Matrix4
-
-# e_hat
-
-Matrix5 = (rbind(A%*%B%*%diag(as.vector(Fbar)),b%*%diag(as.vector(Fbar))))%*%(diag(1,n+1) + B%*%D%*%B)%*%(diag(as.vector(Fbar))%*%B%*%(Phi*Phi))
-
-e_hat = ginv(Matrix1)%*%Matrix5
-
-# V (variance of estimator)
-
-D=(1-A)*(1-t(A))*(A%*%t(A))
-bf=b*Fbar
-BF=diag(bf[1:(n+1)])
-S=rbind(A%*%BF,t(bf))
-R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
-U=(t(M)%*%R)%*%M
-V=(MMinv%*%U)%*%MMinv
-
-# Var(An)
-
-Var_An = t(PhiStar1)%*%diag(as.vector(Fbar))%*%B%*%V%*%B%*%diag(as.vector(Fbar))%*%PhiStar2+
-  2*b%*%VStar%*%diag(as.vector(Fbar))%*%b+
-  2*t(r1_hat+r2_hat)%*%diag(as.vector(Fbar))%*%b+
-  t(Phi)%*%B%*%V%*%B%*%Phi+
-  2*b%*%e_hat+
-  t(Phi)%*%B%*%diag(as.vector(Fbar))%*%(diag(as.vector(Fbar))%*%b+B%*%D%*%B%*%diag(as.vector(Fbar))%*%B%*%Phi)
-
-# # Variance of sqrt(n)(theta_hat - theta)
-
-VarTheta = Var_An/(t(Phi)**2%*%Fbar)
