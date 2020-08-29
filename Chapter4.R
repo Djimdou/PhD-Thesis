@@ -145,8 +145,7 @@ Fun_ThetaHatFn12 <- function(Z1,Z2,del,n,phat,Fbar){
   # Log-pseudo-likelihood function derivative
   DiffLogL = function(x){
     sum(phat*(rep(1/(x+1),times=n)-log(Fn1*Fn2)+
-                     (rep(1/x**2,times=n))*log(Fn1**(rep(-x,times=n))+
-                                                 Fn2**(rep(-x,times=n))-1)+
+                     (rep(1/x**2,times=n))*log(Fn1**(rep(-x,times=n))+Fn2**(rep(-x,times=n))-1)+
                      (rep(2+1/x,times=n))*(Fn1**(rep(-x,times=n))*log(Fn1)+
                                              Fn2**(rep(-x,times=n))*log(Fn2))/
                      (Fn1**(rep(-x,times=n))+Fn2**(rep(-x,times=n))-1)))
@@ -313,7 +312,7 @@ Fun_VarMLE <- function(Z1,Z2,del,theta_hat,Fn1,Fn2){
 
 # # # Kendall's tau:simulated data
 
-n = 1500
+n = 100
 Max = 1000 # number of samples for MSE 
 Tau_hat = rep(NA,times=Max)
 del_mean = rep(NA,times=Max)
@@ -418,7 +417,7 @@ V_tau = 4**2*(t(Fbar)%*%B%*%V%*%B%*%Fbar+
   2*t(Fbar)%*%B%*%W_hat+
   t(Fbar)%*%B%*%diag(Fbar)%*%(Id+B%*%D%*%B)%*%diag(Fbar)%*%B%*%Fbar)
 
-# # Graphic for Fbar 
+# # Graphic for Fbar (not good for big n)
 
 FBarFun = function(x,y){
   sum(phat[((Z1 >= x)*(Z2 >= y))])
@@ -519,7 +518,7 @@ R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
 U=(t(M)%*%R)%*%M
 V=(MMinv%*%U)%*%MMinv
 
-# # Kendall's tau estimate
+# # Graph of Fbar (good)
 
 FBarFun = function(x,y){
   sum(phat[((Z_ordered[,1] >= x)*(Z_ordered[,2] >= y))])
@@ -530,6 +529,8 @@ y = unique(Z_ordered[order(Z_ordered[,2]),2])
 F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
 
 persp(x,y,F_bar_grid, theta = 30, phi = 30)
+
+# # Kendall's tau estimate
 
 Tau_hat = 4*(t(phat[-(n+1)]) %*% Fbar[-(n+1)])-1
 
@@ -563,7 +564,7 @@ V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
 
 # Estimator
 
-n=500
+n=3000
 
 ZDel = FunZDel_canlifins(size=n)
 Z1 = ZDel[[1]]
@@ -601,7 +602,10 @@ MMinv=solve(t(M)%*%M)
 Fbar=as.vector(MMinv%*%b) ### <---- THIS IS THE \bar{F} VECTOR
 phat=(ginv(A)%*%Fbar)#[-(n+1)] # weights
 
-# Graph of Fbar
+phat = phat[-(n+1)]
+Fbar=Fbar[-(n+1)]
+
+# Graph of Fbar: (not good for n=200,500, good for n=100,300)
 
 FBarFun = function(x,y){
   sum(phat[((Z1 >= x)*(Z2 >= y))])
@@ -639,7 +643,7 @@ V=(MMinv%*%U)%*%MMinv
 
 # # Kendall's tau estimate
 
-Tau_hat = 4*(t(phat)[-(n+1)] %*% Fbar[-(n+1)])-1
+Tau_hat = 4*(t(phat) %*% Fbar)-1
 
 # # Kendall's tau variance
 
@@ -660,15 +664,15 @@ Fn2 = ThetaFn12[[3]]
 
 VarThetaHat = Fun_VarMLE(Z1=Z1,Z2=Z2,del=del,theta_hat=as.vector(theta_hat),Fn1=Fn1,Fn2=Fn2)
 
-# # #  Simulation
+ 
 
-# # Convergence of the stimator
+# #  # Convergence of the stimator (Simulation)
 
 n_vect = seq(from=100,to=500,by=10)
 
 theta_hat_vect = rep(NA,length(n_vect))
 
-theta = 1
+theta = 2
 
 beta = 1
 
@@ -698,20 +702,34 @@ for(i in 1:length(n_vect)){
   Fbar=as.vector(MMinv%*%b) 
   phat=(solve(A)%*%Fbar)
   
-  theta_hat_vect[i] = Fun_ThetaHat(Z1,Z2,del,n,phat,Fbar)
+  Fbar = Fbar[-(n+1)]
+  phat = phat[-(n+1)]
+  
+  #FBarFun = function(x,y){
+  #  sum(phat[((Z1 >= x)*(Z2 >= y))])
+  #}
+  
+  #x = unique(Z1[order(Z1)])#
+  #y = unique(Z2[order(Z2)])#
+  #F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun)) 
+  
+  #persp(x,y,F_bar_grid, theta = 30, phi = 30)# works
+  
+  
+  theta_hat_vect[i] = Fun_ThetaHatFn12(Z1,Z2,del,n,phat,Fbar)[[1]]
   
 }
 
-# plot(theta_hat,type='l',ylim=range(c(theta_hat,theta)));abline(h=theta);
+# plot(theta_hat_vect,type='l',ylim=range(c(theta_hat_vect,theta)));abline(h=theta);
 
 
-# # MLE and variance
+# # MLE and variance (through simulated)
 
 theta_vect = exp(seq(from=0.1,to=1,by=0.1))-1
 VarThetaHat = rep(NA,times=length(theta_vect))
 
 beta = 2
-n=100
+n=500
 
 for(j in 1:length(theta_vect)){
   
@@ -740,6 +758,16 @@ for(j in 1:length(theta_vect)){
   
   Fbar=Fbar[-(n+1)]
   phat=phat[-(n+1)]
+  
+  #FBarFun = function(x,y){
+  #  sum(phat[((Z1 >= x)*(Z2 >= y))])
+  #}
+  
+  #x = unique(Z1[order(Z1)])#
+  #y = unique(Z2[order(Z2)])#
+  #F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
+  
+  #persp(x,y,F_bar_grid, theta = 30, phi = 30) # works here
   
   ThetaFn12 = Fun_ThetaHatFn12(Z1,Z2,del,n,phat,Fbar)
   
