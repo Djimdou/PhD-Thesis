@@ -309,21 +309,21 @@ Fun_VarMLE <- function(Z1,Z2,del,theta_hat,Fn1,Fn2){
 
 
 
-
 # # # Kendall's tau:simulated data
 
-n = 100
+n = 500
 Max = 1000 # number of samples for MSE 
 Tau_hat = rep(NA,times=Max)
 del_mean = rep(NA,times=Max)
-theta = 2
-beta=1.7
+theta = 3
+beta=2
+lambda=2
 
 for(m in 1:Max){
 
   # # Estimator 
   
-  ZDel = FunZDel(n=n,theta=theta,seed=m,beta=beta)
+  ZDel = FunZDel(n=n,theta=theta,seed=m,lambda=lambda,beta=beta)
   Z1 = ZDel[[1]]
   Z2 = ZDel[[2]]
   del = ZDel[[3]]
@@ -367,7 +367,7 @@ for(m in 1:Max){
 }
 
 
-# MSE and its decomposition
+# Graph for bias in estimating Kendall's tau
 
 Tau = theta/(theta+2)
 #plot(Tau_hat,type='l',ylim=range(c(Tau_hat,Tau)));abline(h=Tau);
@@ -381,10 +381,13 @@ abline(h=Tau,col='red',lwd = 3)
 #abline(h=mean(Tau_hat),col='black',lwd = 3)
 axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
-mtext(side=1, line=2.25, "iteration rank", font=2,cex=1.5)
-#legend(x=900,y=0.8,legend=c(expression(tau), expression(tau),lwd = 4,col=c("red", "black"),lty=1,cex=1.25,bty="n"))
+mtext(side=1, line=2.25, "iteration rank", font=1.5,cex=1.25)
+legend("bottomright",legend=c(expression(tau), expression(tau[500])),pch=c(NA,1),lwd = 2.5,col=c("red", "black"),lty=c(1,NA),cex=1.25)#,bty="n"
 
-Var = var(Tau_hat)*((Max-1)/Max)
+
+# MSE and its decomposition
+
+Var = mean((Tau_hat-mean(Tau_hat))**2)
 Bias2 = (mean(Tau_hat)-Tau)**2
 
 MSE=Var+Bias2
@@ -400,7 +403,7 @@ MMinv=solve(t(M)%*%M)
 
 D=(1-A)*(1-t(A))*(A%*%t(A))
 bf=b*Fbar
-BF=diag(bf[1:(n+1)])
+BF=diag(bf)
 S=rbind(A%*%BF,t(bf))
 R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
 U=(t(M)%*%R)%*%M
@@ -725,15 +728,15 @@ for(i in 1:length(n_vect)){
 
 # # MLE and variance (through simulated)
 
-theta_vect = exp(seq(from=0.1,to=1,by=0.1))-1
+theta_vect = seq(from=0.5,to=10,by=1)# exp(seq(from=0.1,to=1,by=0.1))-1
 VarThetaHat = rep(NA,times=length(theta_vect))
 
-beta = 2
-n=500
+beta = 10
+n=300
 
 for(j in 1:length(theta_vect)){
   
-  ZDel = FunZDel(n=n,theta=theta_vect[j],beta=beta,seed=j)
+  ZDel = FunZDel(n=n,theta=theta_vect[j],lambda=1.5,beta=beta,seed=j)
   Z1 = ZDel[[1]]
   Z2 = ZDel[[2]]
   del = ZDel[[3]]
@@ -778,3 +781,4 @@ for(j in 1:length(theta_vect)){
   VarThetaHat[j] = Fun_VarMLE(Z1=Z1,Z2=Z2,del=del,theta_hat=theta_hat,Fn1=Fn1,Fn2=Fn2)
 }
 
+#plot(VarThetaHat/n)
