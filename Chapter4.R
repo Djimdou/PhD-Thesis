@@ -3,7 +3,9 @@ library(MASS) # for ginv
 library(dplyr)
 library(copula) # for claytonCopula
 library(pracma) # for NewtonRaphson procedure
-library(CASdatasets) # dataset 
+library(CASdatasets) # Canadian life insurance dataset 
+library(SurvCorr) # kidney dataset
+
 
 # # # Functions
 
@@ -447,42 +449,43 @@ persp(x,y,F_bar_grid, theta = 30, phi = 30)
 # Biometrics, vol. 47, no. 2, 1991, pp. 461-466.
 
 
-location = 'C:/Users/djimd/OneDrive/Documents/Concordia - PhD/Thesis/McGilchrist_Aisbett-1991.pdf'
+#location = 'C:/Users/djimd/OneDrive/Documents/Concordia - PhD/Thesis/McGilchrist_Aisbett-1991.pdf'
 # Data: https://rdrr.io/cran/SurvCorr/man/kidney.html
 
 # Extract the table
-mydata <- extract_tables(file=location,pages=6)
+data(kidney)
+# extract_tables(file=location,pages=6)
 
-data_mc = data.frame(mydata)[-(1:3),2:3]
+#data_mc = data.frame(mydata)[-(1:3),2:3]
 
 # strsplit(toString(data.frame(mydata)[-(1:3),2]),",")
 
-times = matrix(as.numeric(unlist(strsplit(toString(data.frame(mydata)[-(1:3),2]),","))),ncol = 2,byrow =TRUE)
+#times = matrix(as.numeric(unlist(strsplit(toString(data.frame(mydata)[-(1:3),2]),","))),ncol = 2,byrow =TRUE)
 
 #unlist(strsplit(substring(data.frame(mydata)[-(1:3),3],1,4),","))
 
-censor = substring(data.frame(mydata)[-(1:3),3],1,4)
-censor[7] = sub(" ",",",censor[7],fixed=TRUE)
-censor[34] = sub("?",",",censor[34],fixed=TRUE)
+#censor = substring(data.frame(mydata)[-(1:3),3],1,4)
+#censor[7] = sub(" ",",",censor[7],fixed=TRUE)
+#censor[34] = sub("?",",",censor[34],fixed=TRUE)
 
-censoring = matrix(as.numeric(unlist(strsplit(censor,","))),ncol = 2,byrow =TRUE)
+#censoring = matrix(as.numeric(unlist(strsplit(censor,","))),ncol = 2,byrow =TRUE)
 
-KidneyInfection = cbind.data.frame(times,censoring)
-colnames(KidneyInfection) = c("T1","T2","uncensored1","uncensored2")
+#KidneyInfection = cbind.data.frame(times,censoring)
+#colnames(KidneyInfection) = c("T1","T2","uncensored1","uncensored2")
 
 # # Estimator 
 
-n = dim(KidneyInfection)[1]
+n = dim(kidney)[1]
 
-ordre = order(KidneyInfection$T1,KidneyInfection$T2)#
-Z_ordered = cbind(KidneyInfection$T1,KidneyInfection$T2)[ordre,]
+ordre = order(kidney$TIME1,kidney$TIME2)#
+#Z_ordered = cbind(kidney$T1,kidney$T2)[ordre,]
 
-del1 = KidneyInfection$uncensored1 
-del2 = KidneyInfection$uncensored2
+del1 = kidney$STATUS1 
+del2 = kidney$STATUS2
 
-xinf=max(Z_ordered[,1],Z_ordered[,2])+1 # CREATING POINT AT INFINITY
-Z1=c(Z_ordered[,1],xinf)
-Z2=c(Z_ordered[,2],xinf)
+xinf=max(kidney$TIME1,kidney$TIME2)+1 # CREATING POINT AT INFINITY
+Z1=c(kidney$TIME1[ordre],xinf)
+Z2=c(kidney$TIME2[ordre],xinf)
 
 del1=c(del1,1)
 del2=c(del2,1)
@@ -530,11 +533,11 @@ V=(MMinv%*%U)%*%MMinv
 # # Graph of Fbar (good)
 
 FBarFun = function(x,y){
-  sum(phat[((Z_ordered[,1] >= x)*(Z_ordered[,2] >= y))])
+  sum(phat[((Z1 >= x)*(Z2 >= y))])
 }
 
-x = unique(Z_ordered[order(Z_ordered[,1]),1])
-y = unique(Z_ordered[order(Z_ordered[,2]),2])
+x = unique(Z1)
+y = unique(Z2[order(Z2)])
 F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
 
 persp(x,y,F_bar_grid, theta = 30, phi = 30)
@@ -557,7 +560,6 @@ V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
 
 
 
-
 # # # Insurance data from 
 # # Frees, Edward W., et al. "Annuity Valuation with Dependent Mortality." 
 # The Journal of Risk and Insurance, vol. 63, no. 2, 1996, pp. 229-261.
@@ -573,7 +575,7 @@ V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
 
 # Estimator
 
-n=1000
+n=3000
 
 ZDel = FunZDel_canlifins(size=n)
 Z1 = ZDel[[1]]
