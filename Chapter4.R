@@ -99,6 +99,8 @@ Fun_ThetaHatFn12 <- function(Z1,Z2,del,n,phat,Fbar){
   Tau_hat = 4*(t(phat) %*% Fbar)-1
   Theta0 = 2*Tau_hat/(1-Tau_hat)
   
+  s = 10**(-6)
+  
   # # MLE of theta
   
   # Fn1
@@ -114,7 +116,9 @@ Fun_ThetaHatFn12 <- function(Z1,Z2,del,n,phat,Fbar){
   
   M=rbind(Id-A%*%B,-t(b))
   MMinv=solve(t(M)%*%M)
-  Fn1=as.vector(MMinv%*%b)
+  Fn1bar=as.vector(MMinv%*%b) # Fn1 bar
+  Fn1 = 1-Fn1bar # Kaplan-Meier 
+  Fn1[Fn1 < s]=s # too small values will yield infinity when inverted
   
   # Fn2
   
@@ -131,7 +135,9 @@ Fun_ThetaHatFn12 <- function(Z1,Z2,del,n,phat,Fbar){
   
   M=rbind(Id-A%*%B,-t(b))
   MMinv=solve(t(M)%*%M)
-  Fn2=as.vector(MMinv%*%b)
+  Fn2bar=as.vector(MMinv%*%b)
+  Fn2 = 1-Fn2bar
+  Fn2[Fn2 < s]=s
   
   #x=matrix(seq(from=0.01,to=50,by=0.1)); ForPlot=apply(X=x,MARGIN=1,FUN=DiffLogL);
   #plot(x,ForPlot,type='l',ylim=range(c(ForPlot,0)));abline(h=0);
@@ -166,8 +172,8 @@ Fun_VarMLE <- function(Z1,Z2,del,theta_hat,Fn1,Fn2){
   
   # Phi
   
-  Phi = 1/(theta_hat+1)-log(Fn1*Fn2)+(1/theta_hat**2)*log(Fn1**(-theta_hat)+Fn2**(-theta_hat)-1)-
-    (2+1/theta_hat)*(-Fn1**(-theta_hat)*log(Fn1)-Fn2**(-theta_hat)*log(Fn2))/(Fn1**(-theta_hat)+Fn2**(-theta_hat)-1)
+  Phi = 1/(theta_hat+1)-log((1-Fn1)*(1-Fn2))+(1/theta_hat**2)*log((1-Fn1)**(-theta_hat)+(1-Fn2)**(-theta_hat)-1)-
+    (2+1/theta_hat)*(-(1-Fn1)**(-theta_hat)*log((1-Fn1))-(1-Fn2)**(-theta_hat)*log((1-Fn2)))/((1-Fn1)**(-theta_hat)+(1-Fn2)**(-theta_hat)-1)
   
   # VStar
   
@@ -233,13 +239,13 @@ Fun_VarMLE <- function(Z1,Z2,del,theta_hat,Fn1,Fn2){
   V_0z=(MMinv%*%U)%*%MMinv
   #V_0z=V_0z[-(n+1),][,-(n+1)]
   
-  PhiStar1  = -1/Fn1-(1/theta_hat)*(Fn1**(-theta_hat-1)/(Fn1**(-theta_hat)+Fn2**(-theta_hat)-1))+
-    (2+1/theta_hat)*Fn1**(-theta_hat-1)*((Fn1**(-theta_hat)+Fn2**(-theta_hat)-1)*(-theta_hat*log(Fn1)+1)+
-                                           theta_hat*Fn1**(-theta_hat)*log(Fn1))/(Fn1**(-theta_hat)+Fn2**(-theta_hat)-1)**2
+  PhiStar1  = -1/(1-Fn1)-(1/theta_hat)*((1-Fn1)**(-theta_hat-1)/((1-Fn1)**(-theta_hat)+(1-Fn2)**(-theta_hat)-1))+
+    (2+1/theta_hat)*(1-Fn1)**(-theta_hat-1)*(((1-Fn1)**(-theta_hat)+(1-Fn2)**(-theta_hat)-1)*(-theta_hat*log((1-Fn1))+1)+
+                                               theta_hat*(1-Fn1)**(-theta_hat)*log((1-Fn1)))/((1-Fn1)**(-theta_hat)+(1-Fn2)**(-theta_hat)-1)**2
   
-  PhiStar2  = -1/Fn2-(1/theta_hat)*(Fn2**(-theta_hat-1)/(Fn1**(-theta_hat)+Fn2**(-theta_hat)-1))+
-    (2+1/theta_hat)*Fn1**(-theta_hat-1)*((Fn1**(-theta_hat)+Fn2**(-theta_hat)-1)*(-theta_hat*log(Fn2)+1)+
-                                           theta_hat*Fn1**(-theta_hat)*log(Fn2))/(Fn1**(-theta_hat)+Fn2**(-theta_hat)-1)**2
+  PhiStar2  = -1/(1-Fn2)-(1/theta_hat)*((1-Fn2)**(-theta_hat-1)/((1-Fn1)**(-theta_hat)+(1-Fn2)**(-theta_hat)-1))+
+    (2+1/theta_hat)*(1-Fn1)**(-theta_hat-1)*(((1-Fn1)**(-theta_hat)+(1-Fn2)**(-theta_hat)-1)*(-theta_hat*log((1-Fn2))+1)+
+                                               theta_hat*(1-Fn1)**(-theta_hat)*log((1-Fn2)))/((1-Fn1)**(-theta_hat)+(1-Fn2)**(-theta_hat)-1)**2
   
   PhiStar1_matrix = matrix(rep(PhiStar1,times=n),ncol=n)
   PhiStar2_matrix = matrix(rep(PhiStar2,times=n),ncol=n)
@@ -535,7 +541,7 @@ persp(x,y,F_bar_grid, theta = 30, phi = 30)
 
 # # Kendall's tau estimate
 
-Tau_hat = 4*(t(phat[-(n+1)]) %*% Fbar[-(n+1)])-1
+Tau_hat = 4*(t(phat) %*% Fbar)-1
 
 # # Kendall's tau variance
 
@@ -567,7 +573,7 @@ V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
 
 # Estimator
 
-n=3000
+n=1000
 
 ZDel = FunZDel_canlifins(size=n)
 Z1 = ZDel[[1]]
@@ -671,7 +677,7 @@ VarThetaHat = Fun_VarMLE(Z1=Z1,Z2=Z2,del=del,theta_hat=as.vector(theta_hat),Fn1=
 
 # #  # Convergence of the stimator (Simulation)
 
-n_vect = seq(from=100,to=500,by=10)
+n_vect = seq(from=100,to=300,by=10)
 
 theta_hat_vect = rep(NA,length(n_vect))
 
@@ -728,10 +734,10 @@ for(i in 1:length(n_vect)){
 
 # # MLE and variance (through simulated)
 
-theta_vect = seq(from=0.5,to=10,by=1)# exp(seq(from=0.1,to=1,by=0.1))-1
+theta_vect = exp(seq(from=0.1,to=1,by=0.1))-1 # seq(from=0.5,to=10,by=1)# 
 VarThetaHat = rep(NA,times=length(theta_vect))
 
-beta = 10
+beta = 2
 n=300
 
 for(j in 1:length(theta_vect)){
@@ -781,4 +787,3 @@ for(j in 1:length(theta_vect)){
   VarThetaHat[j] = Fun_VarMLE(Z1=Z1,Z2=Z2,del=del,theta_hat=theta_hat,Fn1=Fn1,Fn2=Fn2)
 }
 
-#plot(VarThetaHat/n)
