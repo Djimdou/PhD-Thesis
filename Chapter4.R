@@ -9,7 +9,7 @@ library(SurvCorr) # kidney dataset
 
 # # # Functions
 
-FunZDel = function(n,theta,lambda=1,seed,alpha=2,beta){
+FunZDel = function(n,theta,lambda=1,seed,alpha=2,beta=2){
   
   require(copula)
   
@@ -60,7 +60,7 @@ FunZDel_canlifins = function(size,seed=1){
   data(canlifins) # load the dataset
   # 14,889 contracts where one annuitant is male and the other female
   
-  canlifins = canlifins[(canlifins$EntryAgeM>=20)&(canlifins$EntryAgeF>=20),]
+  canlifins = canlifins[(canlifins$EntryAgeM>=18)|(canlifins$EntryAgeF>=18),]
   
   set.seed(seed)
   Sample = sample(1:dim(canlifins)[1],size = size)
@@ -101,7 +101,7 @@ Fun_ThetaHatFn12 <- function(Z1,Z2,del,n,phat,Fbar){
   Tau_hat = 4*(t(phat) %*% Fbar)-1
   Theta0 = 2*Tau_hat/(1-Tau_hat)
   
-  s = 10**(-6)
+  s = 10**(-5)
   
   # # MLE of theta
   
@@ -116,10 +116,12 @@ Fun_ThetaHatFn12 <- function(Z1,Z2,del,n,phat,Fbar){
   b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
   B=diag(b)
   
+  Id = diag(1,n+1)
+  
   M=rbind(Id-A%*%B,-t(b))
   MMinv=solve(t(M)%*%M)
   Fn1bar=as.vector(MMinv%*%b) # Fn1 bar
-  Fn1 = 1-Fn1bar # Kaplan-Meier 
+  Fn1 = 1-Fn1bar # 
   Fn1[Fn1 < s]=s # too small values will yield infinity when inverted
   
   # Fn2
@@ -152,15 +154,16 @@ Fun_ThetaHatFn12 <- function(Z1,Z2,del,n,phat,Fbar){
   
   # Log-pseudo-likelihood function derivative
   DiffLogL = function(x){
-    sum(phat*(rep(1/(x+1),times=n)-log(Fn1*Fn2)+
-                     (rep(1/x**2,times=n))*log(Fn1**(rep(-x,times=n))+Fn2**(rep(-x,times=n))-1)+
-                     (rep(2+1/x,times=n))*(Fn1**(rep(-x,times=n))*log(Fn1)+
+    sum(phat*(rep(1/(x+1),times=n)-
+                log(Fn1*Fn2)+
+                (rep(1/x**2,times=n))*log(Fn1**(rep(-x,times=n))+Fn2**(rep(-x,times=n))-1)+
+                (rep(2+1/x,times=n))*(Fn1**(rep(-x,times=n))*log(Fn1)+
                                              Fn2**(rep(-x,times=n))*log(Fn2))/
-                     (Fn1**(rep(-x,times=n))+Fn2**(rep(-x,times=n))-1)))
+                                      (Fn1**(rep(-x,times=n))+Fn2**(rep(-x,times=n))-1)))
   }
   
   theta_hat = newtonRaphson(fun=DiffLogL, x0=Theta0)$root
-  #theta_hat[i] = uniroot(f=DiffLogL2, interval=c(0.01,10**2))$root
+  #theta_hat[i] = uniroot(f=DiffLogL, interval=c(0.01,50))$root
   
   # Coding Newton-Raphson:
   # https://rpubs.com/aaronsc32/newton-raphson-method#:~:text=%23%23%20%5B1%5D%203.162278-,Newton%2DRaphson%20Method%20in%20R,rootSolve%20package%20features%20the%20uniroot.
@@ -168,14 +171,16 @@ Fun_ThetaHatFn12 <- function(Z1,Z2,del,n,phat,Fbar){
   return(list(theta_hat,Fn1,Fn2))
 } 
 
-Fun_VarMLE <- function(Z1,Z2,del,theta_hat,Fn1,Fn2){
+Fun_VarMLE <- function(Z1,Z2,del,theta_hat,Fn1,Fn2,n){
   
   # # Variance of An
   
   # Phi
   
-  Phi = 1/(theta_hat+1)-log((1-Fn1)*(1-Fn2))+(1/theta_hat**2)*log((1-Fn1)**(-theta_hat)+(1-Fn2)**(-theta_hat)-1)-
-    (2+1/theta_hat)*(-(1-Fn1)**(-theta_hat)*log((1-Fn1))-(1-Fn2)**(-theta_hat)*log((1-Fn2)))/((1-Fn1)**(-theta_hat)+(1-Fn2)**(-theta_hat)-1)
+  Phi = rep(1/(theta_hat+1),times=n)-
+        log((1-Fn1)*(1-Fn2))+
+        rep(1/theta_hat**2,times=n)*log((1-Fn1)**rep(-theta_hat,times=n)+(1-Fn2)**rep(-theta_hat,times=n)-1)-
+        rep(2+1/theta_hat,times=n)*(-(1-Fn1)**rep(-theta_hat,times=n)*log((1-Fn1))-(1-Fn2)**rep(-theta_hat,times=n)*log((1-Fn2)))/((1-Fn1)**rep(-theta_hat,times=n)+(1-Fn2)**rep(-theta_hat,times=n)-1)
   
   # VStar
   
@@ -186,6 +191,8 @@ Fun_VarMLE <- function(Z1,Z2,del,theta_hat,Fn1,Fn2){
   
   b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
   B=diag(b)
+  
+  Id = diag(1,n+1)
   
   M=rbind(Id-A%*%B,-t(b))
   MMinv=solve(t(M)%*%M)
@@ -241,13 +248,17 @@ Fun_VarMLE <- function(Z1,Z2,del,theta_hat,Fn1,Fn2){
   V_0z=(MMinv%*%U)%*%MMinv
   #V_0z=V_0z[-(n+1),][,-(n+1)]
   
-  PhiStar1  = -1/(1-Fn1)-(1/theta_hat)*((1-Fn1)**(-theta_hat-1)/((1-Fn1)**(-theta_hat)+(1-Fn2)**(-theta_hat)-1))+
-    (2+1/theta_hat)*(1-Fn1)**(-theta_hat-1)*(((1-Fn1)**(-theta_hat)+(1-Fn2)**(-theta_hat)-1)*(-theta_hat*log((1-Fn1))+1)+
-                                               theta_hat*(1-Fn1)**(-theta_hat)*log((1-Fn1)))/((1-Fn1)**(-theta_hat)+(1-Fn2)**(-theta_hat)-1)**2
+  PhiStar1  = -1/(1-Fn1)-
+              rep(1/theta_hat,times=n)*(1-Fn1)**rep(-theta_hat-1,times=n)/((1-Fn1)**rep(-theta_hat,times=n)+(1-Fn2)**rep(-theta_hat,times=n)-1)+
+              rep(2+1/theta_hat,times=n)*(1-Fn1)**rep(-theta_hat-1,times=n)*(((1-Fn1)**rep(-theta_hat,times=n)+(1-Fn2)**rep(-theta_hat,times=n)-1)*(-rep(theta_hat,times=n)*log((1-Fn1))+1)+
+                                               rep(theta_hat,times=n)*((1-Fn1)**rep(-theta_hat,times=n)*log((1-Fn1))+(1-Fn2)**rep(-theta_hat,times=n)*log((1-Fn2))))/
+                                              ((1-Fn1)**rep(-theta_hat,times=n)+(1-Fn2)**rep(-theta_hat,times=n)-1)**2
   
-  PhiStar2  = -1/(1-Fn2)-(1/theta_hat)*((1-Fn2)**(-theta_hat-1)/((1-Fn1)**(-theta_hat)+(1-Fn2)**(-theta_hat)-1))+
-    (2+1/theta_hat)*(1-Fn1)**(-theta_hat-1)*(((1-Fn1)**(-theta_hat)+(1-Fn2)**(-theta_hat)-1)*(-theta_hat*log((1-Fn2))+1)+
-                                               theta_hat*(1-Fn1)**(-theta_hat)*log((1-Fn2)))/((1-Fn1)**(-theta_hat)+(1-Fn2)**(-theta_hat)-1)**2
+  PhiStar2  = -1/(1-Fn2)-
+              rep(1/theta_hat,times=n)*(1-Fn2)**rep(-theta_hat-1,times=n)/((1-Fn1)**rep(-theta_hat,times=n)+(1-Fn2)**rep(-theta_hat,times=n)-1)+
+              rep(2+1/theta_hat,times=n)*(1-Fn2)**rep(-theta_hat-1,times=n)*(((1-Fn1)**rep(-theta_hat,times=n)+(1-Fn2)**rep(-theta_hat,times=n)-1)*(-rep(theta_hat,times=n)*log((1-Fn2))+1)+
+                                              rep(theta_hat,times=n)*((1-Fn1)**rep(-theta_hat,times=n)*log((1-Fn1))+(1-Fn2)**rep(-theta_hat,times=n)*log((1-Fn2))))/
+                                              ((1-Fn1)**rep(-theta_hat,times=n)+(1-Fn2)**rep(-theta_hat,times=n)-1)**2
   
   PhiStar1_matrix = matrix(rep(PhiStar1,times=n),ncol=n)
   PhiStar2_matrix = matrix(rep(PhiStar2,times=n),ncol=n)
@@ -635,8 +646,8 @@ theta_hat = ThetaFn12[[1]]
 
 # Variance estimator
 
-Fbar=Fbar[-(n+1)]
-phat=phat[-(n+1)]
+#Fbar=Fbar[-(n+1)]
+#phat=phat[-(n+1)]
 b=b[-(n+1)]
 A=A[-(n+1),][,-(n+1)]
 B=B[-(n+1),][,-(n+1)]
@@ -673,7 +684,7 @@ V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
 Fn1 = ThetaFn12[[2]]
 Fn2 = ThetaFn12[[3]]
 
-VarThetaHat = Fun_VarMLE(Z1=Z1,Z2=Z2,del=del,theta_hat=as.vector(theta_hat),Fn1=Fn1,Fn2=Fn2)
+VarThetaHat = Fun_VarMLE(Z1=Z1,Z2=Z2,del=del,theta_hat=as.vector(theta_hat),Fn1=Fn1,Fn2=Fn2,n=n)
 
  
 
@@ -683,7 +694,7 @@ n_vect = seq(from=100,to=300,by=10)
 
 theta_hat_vect = rep(NA,length(n_vect))
 
-theta = 2
+theta = 1
 
 beta = 1
 
@@ -726,7 +737,6 @@ for(i in 1:length(n_vect)){
   
   #persp(x,y,F_bar_grid, theta = 30, phi = 30)# works
   
-  
   theta_hat_vect[i] = Fun_ThetaHatFn12(Z1,Z2,del,n,phat,Fbar)[[1]]
   
 }
@@ -736,7 +746,7 @@ for(i in 1:length(n_vect)){
 
 # # MLE and variance (through simulated)
 
-theta_vect = exp(seq(from=0.1,to=1,by=0.1))-1 # seq(from=0.5,to=10,by=1)# 
+theta_vect =  seq(from=0.5,to=5,by=0.5)# exp(seq(from=0.1,to=1,by=0.1))-1 #  
 VarThetaHat = rep(NA,times=length(theta_vect))
 
 beta = 2
@@ -744,7 +754,7 @@ n=300
 
 for(j in 1:length(theta_vect)){
   
-  ZDel = FunZDel(n=n,theta=theta_vect[j],lambda=1.5,beta=beta,seed=j)
+  ZDel = FunZDel(n=n,theta=theta_vect[j],lambda=1.5,beta=2,seed=j)
   Z1 = ZDel[[1]]
   Z2 = ZDel[[2]]
   del = ZDel[[3]]
@@ -786,6 +796,6 @@ for(j in 1:length(theta_vect)){
   Fn1 = ThetaFn12[[2]]
   Fn2 = ThetaFn12[[3]]
   
-  VarThetaHat[j] = Fun_VarMLE(Z1=Z1,Z2=Z2,del=del,theta_hat=theta_hat,Fn1=Fn1,Fn2=Fn2)
+  VarThetaHat[j] = Fun_VarMLE(Z1=Z1,Z2=Z2,del=del,theta_hat=theta_hat,Fn1=Fn1,Fn2=Fn2,n=n)
 }
 
