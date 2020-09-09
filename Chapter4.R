@@ -50,9 +50,9 @@ FunZDel = function(n,theta,lambda=1,seed,alpha=2,beta=2){
 }
 
 # Log-pseudo-likelihood function
-LogL = function(x){
-  sum(phat*(log(x+1)-(x+1)*log(Fn1*Fn2)-(2+1/x)*log(Fn1**(-x)+Fn2**(-x)-1)))
-}
+#LogL = function(x){
+#  sum(phat*(log(x+1)-(x+1)*log(Fn1*Fn2)-(2+1/x)*log(Fn1**(-x)+Fn2**(-x)-1)))
+#}
 
 
 FunZDel_canlifins = function(size,seed=1){
@@ -101,7 +101,7 @@ Fun_ThetaHatFn12 <- function(Z1,Z2,del,n,phat,Fbar){
   Tau_hat = 4*(t(phat) %*% Fbar)-1
   Theta0 = 2*Tau_hat/(1-Tau_hat)
   
-  s = 10**(-5)
+  s = 10**(-6)
   
   # # MLE of theta
   
@@ -121,7 +121,7 @@ Fun_ThetaHatFn12 <- function(Z1,Z2,del,n,phat,Fbar){
   M=rbind(Id-A%*%B,-t(b))
   MMinv=solve(t(M)%*%M)
   Fn1bar=as.vector(MMinv%*%b) # Fn1 bar
-  Fn1 = 1-Fn1bar # 
+  Fn1 = 1-Fn1bar # Fn1
   Fn1[Fn1 < s]=s # too small values will yield infinity when inverted
   
   # Fn2
@@ -178,9 +178,9 @@ Fun_VarMLE <- function(Z1,Z2,del,theta_hat,Fn1,Fn2,n){
   # Phi
   
   Phi = rep(1/(theta_hat+1),times=n)-
-        log((1-Fn1)*(1-Fn2))+
-        rep(1/theta_hat**2,times=n)*log((1-Fn1)**rep(-theta_hat,times=n)+(1-Fn2)**rep(-theta_hat,times=n)-1)-
-        rep(2+1/theta_hat,times=n)*(-(1-Fn1)**rep(-theta_hat,times=n)*log((1-Fn1))-(1-Fn2)**rep(-theta_hat,times=n)*log((1-Fn2)))/((1-Fn1)**rep(-theta_hat,times=n)+(1-Fn2)**rep(-theta_hat,times=n)-1)
+    log(Fn1*Fn2)+
+    rep(1/theta_hat**2,times=n)*log(Fn1**rep(-theta_hat,times=n)+Fn2**rep(-theta_hat,times=n)-1)-
+    rep(2+1/theta_hat,times=n)*(-Fn1**rep(-theta_hat,times=n)*log(Fn1)-Fn2**rep(-theta_hat,times=n)*log(Fn2))/(Fn1**rep(-theta_hat,times=n)+Fn2**rep(-theta_hat,times=n)-1)
   
   # VStar
   
@@ -213,7 +213,6 @@ Fun_VarMLE <- function(Z1,Z2,del,theta_hat,Fn1,Fn2,n){
   R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
   U=(t(M)%*%R)%*%M
   V_z0=(MMinv%*%U)%*%MMinv
-  #V_z0=V_z0[-(n+1),][,-(n+1)]
   
   Z2_ordered = Z2[order(Z2)]
   az2=matrix(rep(Z2_ordered,n+1),ncol=n+1)
@@ -221,9 +220,9 @@ Fun_VarMLE <- function(Z1,Z2,del,theta_hat,Fn1,Fn2,n){
   A[lower.tri(A, diag = FALSE)] = 0
   rsumA=apply(A,1,sum)
   
-  del = del[order(Z2)]
+  del2 = del[order(Z2)]
   
-  b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+  b=c((1-eps)*del2[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
   B=diag(b)
   Id=diag(1,n+1)
   
@@ -246,19 +245,18 @@ Fun_VarMLE <- function(Z1,Z2,del,theta_hat,Fn1,Fn2,n){
   R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
   U=(t(M)%*%R)%*%M
   V_0z=(MMinv%*%U)%*%MMinv
-  #V_0z=V_0z[-(n+1),][,-(n+1)]
   
-  PhiStar1  = -1/(1-Fn1)-
-              rep(1/theta_hat,times=n)*(1-Fn1)**rep(-theta_hat-1,times=n)/((1-Fn1)**rep(-theta_hat,times=n)+(1-Fn2)**rep(-theta_hat,times=n)-1)+
-              rep(2+1/theta_hat,times=n)*(1-Fn1)**rep(-theta_hat-1,times=n)*(((1-Fn1)**rep(-theta_hat,times=n)+(1-Fn2)**rep(-theta_hat,times=n)-1)*(-rep(theta_hat,times=n)*log((1-Fn1))+1)+
-                                               rep(theta_hat,times=n)*((1-Fn1)**rep(-theta_hat,times=n)*log((1-Fn1))+(1-Fn2)**rep(-theta_hat,times=n)*log((1-Fn2))))/
-                                              ((1-Fn1)**rep(-theta_hat,times=n)+(1-Fn2)**rep(-theta_hat,times=n)-1)**2
+  PhiStar1  = -1/Fn1-
+    rep(1/theta_hat,times=n)*Fn1**rep(-theta_hat-1,times=n)/(Fn1**rep(-theta_hat,times=n)+Fn2**rep(-theta_hat,times=n)-1)+
+    rep(2+1/theta_hat,times=n)*Fn1**rep(-theta_hat-1,times=n)*((Fn1**rep(-theta_hat,times=n)+Fn2**rep(-theta_hat,times=n)-1)*(-rep(theta_hat,times=n)*log(Fn1)+1)+
+                                                                 rep(theta_hat,times=n)*(Fn1**rep(-theta_hat,times=n)*log(Fn1)+Fn2**rep(-theta_hat,times=n)*log(Fn2)))/
+    (Fn1**rep(-theta_hat,times=n)+Fn2**rep(-theta_hat,times=n)-1)**2
   
-  PhiStar2  = -1/(1-Fn2)-
-              rep(1/theta_hat,times=n)*(1-Fn2)**rep(-theta_hat-1,times=n)/((1-Fn1)**rep(-theta_hat,times=n)+(1-Fn2)**rep(-theta_hat,times=n)-1)+
-              rep(2+1/theta_hat,times=n)*(1-Fn2)**rep(-theta_hat-1,times=n)*(((1-Fn1)**rep(-theta_hat,times=n)+(1-Fn2)**rep(-theta_hat,times=n)-1)*(-rep(theta_hat,times=n)*log((1-Fn2))+1)+
-                                              rep(theta_hat,times=n)*((1-Fn1)**rep(-theta_hat,times=n)*log((1-Fn1))+(1-Fn2)**rep(-theta_hat,times=n)*log((1-Fn2))))/
-                                              ((1-Fn1)**rep(-theta_hat,times=n)+(1-Fn2)**rep(-theta_hat,times=n)-1)**2
+  PhiStar2  = -1/Fn2-
+    rep(1/theta_hat,times=n)*Fn2**rep(-theta_hat-1,times=n)/(Fn1**rep(-theta_hat,times=n)+Fn2**rep(-theta_hat,times=n)-1)+
+    rep(2+1/theta_hat,times=n)*Fn2**rep(-theta_hat-1,times=n)*((Fn1**rep(-theta_hat,times=n)+Fn2**rep(-theta_hat,times=n)-1)*(-rep(theta_hat,times=n)*log(Fn2)+1)+
+                                                                 rep(theta_hat,times=n)*(Fn1**rep(-theta_hat,times=n)*log(Fn1)+Fn2**rep(-theta_hat,times=n)*log(Fn2)))/
+    (Fn1**rep(-theta_hat,times=n)+Fn2**rep(-theta_hat,times=n)-1)**2
   
   PhiStar1_matrix = matrix(rep(PhiStar1,times=n),ncol=n)
   PhiStar2_matrix = matrix(rep(PhiStar2,times=n),ncol=n)
@@ -291,19 +289,22 @@ Fun_VarMLE <- function(Z1,Z2,del,theta_hat,Fn1,Fn2,n){
   
   D=(1-A)*(1-t(A))*(A%*%t(A))
   
-  Matrix1 = rbind(Id - A%*%B,-b)
+  Matrix1 = rbind(Id - A%*%B,-t(b))
   
-  Matrix3 = (rbind(A%*%B%*%diag(Fbar),b%*%diag(Fbar)))%*%(diag(1,n) + B%*%D%*%B)%*%(diag(Fbar)%*%B%*%(Phi*PhiStar1))
-  Matrix4 = (rbind(A%*%B%*%diag(Fbar),b%*%diag(Fbar)))%*%(diag(1,n) + B%*%D%*%B)%*%(diag(Fbar)%*%B%*%(Phi*PhiStar2))
+  #Matrix3 = (rbind(A%*%B%*%diag(Fbar),b%*%diag(Fbar)))%*%(Id + B%*%D%*%B)%*%(diag(Fbar)%*%B%*%(Phi*PhiStar1))
+  Matrix3 = (rbind(A%*%B%*%diag(Fbar),b%*%diag(Fbar)))%*%(Id + B%*%D%*%B)%*%diag(Fbar)%*%B
+  #Matrix4 = (rbind(A%*%B%*%diag(Fbar),b%*%diag(Fbar)))%*%(Id + B%*%D%*%B)%*%(diag(Fbar)%*%B%*%(Phi*PhiStar2))
   
-  r1_hat = ginv(Matrix1)%*%Matrix3
-  r2_hat = ginv(Matrix1)%*%Matrix4
+  Matrix4 = ginv(Matrix1)%*%Matrix3
+  
+  r1_hat = Matrix4%*%(Phi*PhiStar1)
+  r2_hat = Matrix4%*%(Phi*PhiStar2)
   
   # e_hat
   
-  Matrix5 = (rbind(A%*%B%*%diag(Fbar),b%*%diag(Fbar)))%*%(diag(1,n) + B%*%D%*%B)%*%(diag(Fbar)%*%B%*%(Phi*Phi))
+  #Matrix5 = (rbind(A%*%B%*%diag(Fbar),b%*%diag(Fbar)))%*%(Id + B%*%D%*%B)%*%(diag(Fbar)%*%B%*%(Phi*Phi))
   
-  e_hat = ginv(Matrix1)%*%Matrix5
+  e_hat = Matrix4%*%(Phi*Phi)
   
   # V (variance of Fbar)
   
@@ -746,11 +747,11 @@ for(i in 1:length(n_vect)){
 
 # # MLE and variance (through simulated)
 
-theta_vect =  seq(from=0.5,to=5,by=0.5)# exp(seq(from=0.1,to=1,by=0.1))-1 #  
+theta_vect =  seq(from=0.5,to=3,by=0.5)# exp(seq(from=0.1,to=1,by=0.1))-1 #  
 VarThetaHat = rep(NA,times=length(theta_vect))
 
 beta = 2
-n=300
+n=200
 
 for(j in 1:length(theta_vect)){
   
