@@ -13,55 +13,46 @@ W = 1:n/n#seq(from=1/n,to=1,by=0.01)
 
 # Independence copula
 
-indep <- indepCopula(dim=2)
-U <- rCopula(n=n, indep)[,1]
-V <- rCopula(n=n, indep)[,2]
-
+cop <- indepCopula(dim=2)
 Phi_true = -log(W)
 
 # Clayton copula
 
-theta = 0.25
-clayton <- claytonCopula(param=theta,dim=2)
-U <- rCopula(n=n, clayton)[,1]
-V <- rCopula(n=n, clayton)[,2]
-
+theta = 3
+cop <- claytonCopula(param=theta,dim=2)
 Phi_true = (W**(-theta)-1)/theta
 
 # AMH copula
 
 theta = 0.5
-AMH <- amhCopula(param=theta,dim=2)
-U <- rCopula(n=n, AMH)[,1]
-V <- rCopula(n=n, AMH)[,2]
-
+cop <- amhCopula(param=theta,dim=2)
 Phi_true = log((1-theta*(1-W))/W)/(1-theta)
 
 # Frank
 
 theta = 1
-frank <- frankCopula(param=theta,dim=2)
-U <- rCopula(n=n, frank)[,1]
-V <- rCopula(n=n, frank)[,2]
-
+cop <- frankCopula(param=theta,dim=2)
 Phi_true = -((exp(theta)-1)/theta)*log((exp(-theta*W)-1)/(exp(-theta)-1))
 
 # Gumbel (counter-example)
 
 theta = 10
-gumbel <- gumbelCopula(param=theta,dim=2)
-U <- rCopula(n=n, gumbel)[,1]
-V <- rCopula(n=n, gumbel)[,2]
-
+cop <- gumbelCopula(param=theta,dim=2)
 Phi_true = (-log(W))**theta
 
 # # Weibull distribution for X and Y
 
-alpha = 10 # Weibull distribution shape parameter
-beta = 1.7 # Weibull distribution scale parameter
+alpha = 2 # Weibull distribution shape parameter
+beta = 2 # Weibull distribution scale parameter
 
-X = beta*(-log(U))**(1/alpha)
-Y = beta*(-log(V))**(1/alpha)
+MyCopula <- mvdc(copula=cop, # copula for (F(X), F(Y))
+                 margins=c("weibull","weibull"), # Weibull distribution for margins X and Y
+                 paramMargins=list(shape=alpha,scale=beta)) # alpha:shape, beta:scale
+
+set.seed(1)
+XY <- rMvdc(n=n,MyCopula)
+X <- XY[,1]
+Y <- XY[,2]
 
 # # Pseudo-sample
 
