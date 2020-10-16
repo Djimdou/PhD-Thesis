@@ -18,7 +18,7 @@ Phi_true = -log(W)
 
 # Clayton copula
 
-theta = 1
+theta = 3
 cop <- claytonCopula(param=theta,dim=2)
 Phi_true = (W**(-theta)-1)/theta
 
@@ -109,23 +109,27 @@ h = rep(NA,times=n)
 h[n] = 1 
 
 for(i in (n-1):1){
-  if(Kn(i/n)-i/n > 0){
+#  if(Kn(i/n)-i/n > 0){
   h[i] = (1/(n*Kn(i/n)-i))*sum(h[(i+1):n])
-  }else{
-    h[i] = h[i+1]
-  }
+#  }else{
+#    h[i] = h[i+1]
+#  }
 }
 
 # Step interpolation
 #Phi_est= rep(NA,times=length(W))
 
-Phi_est = (sum(h) - cumsum(c(0,h[-n])))/n
+cond = h>=0 & is.finite(h) # may have 0's, when Kn(i/n)-i/n <= 0
+
+h.interp = approx(x=c(0,Vn[cond],1), y=c(h[cond][1],h[cond],1), xout=W, method="constant", ties = mean)$y 
+
+Phi_est = (sum(h.interp) - cumsum(c(0,h.interp[-n])))/n
 
 # Graph
 
-Phi_est_plot = approx(x=c(0,Vn,1), y=c(Phi_est[1],Phi_est,0), xout=W, method="constant", ties = mean)$y 
+#Phi_est_plot = approx(x=c(0,Vn,1), y=c(Phi_est[1],Phi_est,0), xout=W, method="constant", ties = mean)$y 
 
-Ylim = range(c(Phi_est_plot,Phi_true),na.rm = TRUE)
+Ylim = range(c(Phi_est,Phi_true),na.rm = TRUE)
 
-plot(W,Phi_est_plot,type='l',col='red',ylim=Ylim)
+plot(W,Phi_est,type='l',col='red',ylim=Ylim)
 lines(W,Phi_true,col='blue')
