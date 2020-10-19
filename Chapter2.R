@@ -24,7 +24,7 @@ Phi_true = (W**(-theta)-1)/theta
 
 # AMH copula
 
-theta = 0.75
+theta = 0.5
 cop <- amhCopula(param=theta,dim=2)
 Phi_true = log((1-theta*(1-W))/W)/(1-theta)
 
@@ -93,15 +93,8 @@ for(i in 1:n){
   }
 }
 
-Phi_est_plot = approx(x=c(0,Vn,1), y=c(Phi_est[1],Phi_est,0), xout=W, method="constant", ties = mean)$y 
+Phi_est_diff = approx(x=c(0,Vn,1), y=c(Phi_est[1],Phi_est,0), xout=W, method="constant", ties = mean)$y 
 
-
-# # Graph
-
-Ylim = range(c(Phi_est_plot,Phi_true),na.rm = TRUE)
-
-plot(W,Phi_est_plot,type='l',col='red',ylim=Ylim)
-lines(W,Phi_true,col='blue')
 
 # # # Estimator 2: integral equation
 
@@ -123,13 +116,29 @@ cond = h>=0 & is.finite(h) # may have 0's, when Kn(i/n)-i/n <= 0
 
 h.interp = approx(x=c(0,Vn[cond],1), y=c(h[cond][1],h[cond],1), xout=W, method="constant", ties = mean)$y 
 
-Phi_est = (sum(h.interp) - cumsum(c(0,h.interp[-n])))/n
+Phi_est_int = (sum(h.interp) - cumsum(c(0,h.interp[-n])))/n
 
-# Graph
 
-#Phi_est_plot = approx(x=c(0,Vn,1), y=c(Phi_est[1],Phi_est,0), xout=W, method="constant", ties = mean)$y 
+# # # Graph
 
-Ylim = range(c(Phi_est,Phi_true),na.rm = TRUE)
+Ylim = range(c(Phi_est_int,Phi_est_diff,Phi_true),na.rm = TRUE)
 
-plot(W,Phi_est,type='l',col='red',ylim=Ylim)
-lines(W,Phi_true,col='blue')
+Xlabels = seq(from=0,to=1,by=0.2)
+Ylabels = seq(from=0,to=Ylim[2],length.out=5)
+
+plot(W,Phi_true,type='l',col='blue',ylim=Ylim,lwd = 2,xlab="",ylab="",xaxt="none",yaxt="none")
+
+lines(W,Phi_est_int,col='red',lwd = 2)
+lines(W,Phi_est_diff,col='orange',lwd = 2)
+
+axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
+axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
+
+legend("topright",legend=c("true density","integral estimator","differential estimator"),lwd = 4,col=c("blue","red", "orange"),lty=1,cex=1.25,bty="n")
+
+
+
+#Ylim = range(c(Phi_est_int,Phi_true),na.rm = TRUE)
+
+#plot(W,Phi_est,type='l',col='red',ylim=Ylim)
+#lines(W,Phi_true,col='blue')
