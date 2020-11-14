@@ -71,12 +71,13 @@ Vn = V[order(V)]
 
 # # # Estimator 1: differential equation
 
-Phi_est = rep(NA,times=n)
+Phi_est = rep(0,times=n)
 
 for(i in 1:n){
   if(Vn[i] < 1-1/n){
     #T = unique(c(W[i],Vn[which((W[i] <= Vn) & (Vn <= 1-1/n))],1-1/n))
-    T = unique(c(Vn[which((Vn[i] <= Vn) & (Vn <= 1-1/n))],1-1/n))
+    #T = unique(c(Vn[which((Vn[i] <= Vn) & (Vn <= 1-1/n))],1-1/n))
+    T = unique(c(Vn[(Vn[i] <= Vn) & (Vn <= 1-1/n)],1-1/n))
     ProdTerm = rep(NA,times=length(T)-1)
     #for(j in 1:(length(T)-1)){
       #if((Kn(T[j])!=T[j])){# & (Kn(T[j])!=T[j+1])
@@ -86,14 +87,16 @@ for(i in 1:n){
       #}
     #}
     ProdTerm = (Kn(T[-length(T)])-T[-length(T)])/(Kn(T[-length(T)])-T[-1])
-    ProdTerm = ProdTerm[is.finite(ProdTerm) & (ProdTerm != 0)]
+    #ProdTerm = ProdTerm[is.finite(ProdTerm) & (ProdTerm != 0)]
     Phi_est[i] = (1/n)*abs(prod(ProdTerm))
-    }else{
-      Phi_est[i] = 0
+  #  }else{
+  #    Phi_est[i] = 0
   }
 }
 
-Phi_est_diff = approx(x=c(0,Vn,1), y=c(Phi_est[1],Phi_est,0), xout=W, method="constant", ties = mean)$y 
+#Phi_est_diff = approx(x=c(0,Vn,1), y=c(Phi_est[1],Phi_est,0), xout=W, method="constant", ties = "ordered")$y 
+Phi_est_diff = approx(x=c(0,Vn,1), y=c(Phi_est[1],Phi_est,0), xout=W, method="constant", ties = "ordered")$y 
+
 
 
 # # # Estimator 2: integral equation
@@ -124,7 +127,8 @@ Phi_est_int = (sum(h.interp) - cumsum(c(0,h.interp[-n])))/n
 Ylim = range(c(Phi_est_int,Phi_est_diff,Phi_true),na.rm = TRUE)
 
 Xlabels = seq(from=0,to=1,by=0.2)
-Ylabels = seq(from=0,to=Ylim[2],length.out=5)
+#Ylabels = format(seq(from=0,to=Ylim[2],length.out=5),scientific=TRUE,digits=2)
+Ylabels = format(seq(from=0,to=Ylim[2],length.out=5),digits=2)#scientific=TRUE,
 
 plot(W,Phi_true,type='l',col='blue',ylim=Ylim,lwd = 2,xlab="",ylab="",xaxt="none",yaxt="none")
 
@@ -132,7 +136,8 @@ lines(W,Phi_est_int,col='red',lwd = 2)
 lines(W,Phi_est_diff,col='orange',lwd = 2)
 
 axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
-axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
+mtext(side=1, line=2, "t", font=2,cex=1.5)
+axis(2, at=Ylabels,labels=Ylabels,las=1,font=2,hadj=1,padj=0)
 
 legend("topright",legend=c("true density","integral estimator","differential estimator"),lwd = 4,col=c("blue","red", "orange"),lty=1,cex=1.25,bty="n")
 

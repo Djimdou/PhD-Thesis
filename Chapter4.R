@@ -101,7 +101,7 @@ Fun_ThetaHatFn12 <- function(Z1,Z2,del,n,phat,Fbar){
   Tau_hat = 4*(t(phat) %*% Fbar)-1
   Theta0 = 2*Tau_hat/(1-Tau_hat)
   
-  s = 10**(-6)
+  s = 10**(-3)
   
   # # MLE of theta
   
@@ -122,7 +122,7 @@ Fun_ThetaHatFn12 <- function(Z1,Z2,del,n,phat,Fbar){
   MMinv=solve(t(M)%*%M)
   Fn1bar=as.vector(MMinv%*%b) # Fn1 bar
   Fn1 = 1-Fn1bar # Fn1
-  Fn1[Fn1 < s]=s # too small values will yield infinity when inverted
+  #Fn1[Fn1 < s]=s # too small values will yield infinity when inverted
   
   # Fn2
   
@@ -141,7 +141,7 @@ Fun_ThetaHatFn12 <- function(Z1,Z2,del,n,phat,Fbar){
   MMinv=solve(t(M)%*%M)
   Fn2bar=as.vector(MMinv%*%b)
   Fn2 = 1-Fn2bar
-  Fn2[Fn2 < s]=s
+  #Fn2[Fn2 < s]=s
   
   #x=matrix(seq(from=0.01,to=50,by=0.1)); ForPlot=apply(X=x,MARGIN=1,FUN=DiffLogL);
   #plot(x,ForPlot,type='l',ylim=range(c(ForPlot,0)));abline(h=0);
@@ -246,17 +246,28 @@ Fun_VarMLE <- function(Z1,Z2,del,theta_hat,Fn1,Fn2,n){
   U=(t(M)%*%R)%*%M
   V_0z=(MMinv%*%U)%*%MMinv
   
-  PhiStar1  = -1/Fn1-
-    rep(1/theta_hat,times=n)*Fn1**rep(-theta_hat-1,times=n)/(Fn1**rep(-theta_hat,times=n)+Fn2**rep(-theta_hat,times=n)-1)+
-    rep(2+1/theta_hat,times=n)*Fn1**rep(-theta_hat-1,times=n)*((Fn1**rep(-theta_hat,times=n)+Fn2**rep(-theta_hat,times=n)-1)*(-rep(theta_hat,times=n)*log(Fn1)+1)+
-                                                                 rep(theta_hat,times=n)*(Fn1**rep(-theta_hat,times=n)*log(Fn1)+Fn2**rep(-theta_hat,times=n)*log(Fn2)))/
-    (Fn1**rep(-theta_hat,times=n)+Fn2**rep(-theta_hat,times=n)-1)**2
+  Fun_PhiStar <- function(x,y,theta){
+    -1/x-
+      rep(1/theta,times=n)*x**rep(-theta-1,times=n)/(x**rep(-theta,times=n)+y**rep(-theta,times=n)-1)+
+      rep(2+1/theta,times=n)*x**rep(-theta-1,times=n)*((x**rep(-theta,times=n)+y**rep(-theta,times=n)-1)*(-rep(theta,times=n)*log(x)+1)+
+                                                         rep(theta,times=n)*(x**rep(-theta,times=n)*log(x)+y**rep(-theta,times=n)*log(y)))/
+      (x**rep(-theta,times=n)+y**rep(-theta,times=n)-1)**2
+    }
   
-  PhiStar2  = -1/Fn2-
-    rep(1/theta_hat,times=n)*Fn2**rep(-theta_hat-1,times=n)/(Fn1**rep(-theta_hat,times=n)+Fn2**rep(-theta_hat,times=n)-1)+
-    rep(2+1/theta_hat,times=n)*Fn2**rep(-theta_hat-1,times=n)*((Fn1**rep(-theta_hat,times=n)+Fn2**rep(-theta_hat,times=n)-1)*(-rep(theta_hat,times=n)*log(Fn2)+1)+
-                                                                 rep(theta_hat,times=n)*(Fn1**rep(-theta_hat,times=n)*log(Fn1)+Fn2**rep(-theta_hat,times=n)*log(Fn2)))/
-    (Fn1**rep(-theta_hat,times=n)+Fn2**rep(-theta_hat,times=n)-1)**2
+  #PhiStar1  = -1/Fn1-
+  #  rep(1/theta_hat,times=n)*Fn1**rep(-theta_hat-1,times=n)/(Fn1**rep(-theta_hat,times=n)+Fn2**rep(-theta_hat,times=n)-1)+
+  #  rep(2+1/theta_hat,times=n)*Fn1**rep(-theta_hat-1,times=n)*((Fn1**rep(-theta_hat,times=n)+Fn2**rep(-theta_hat,times=n)-1)*(-rep(theta_hat,times=n)*log(Fn1)+1)+
+  #                                                               rep(theta_hat,times=n)*(Fn1**rep(-theta_hat,times=n)*log(Fn1)+Fn2**rep(-theta_hat,times=n)*log(Fn2)))/
+  #  (Fn1**rep(-theta_hat,times=n)+Fn2**rep(-theta_hat,times=n)-1)**2
+  
+  PhiStar1 = Fun_PhiStar(x=Fn1,y=Fn2,theta=theta_hat)
+  PhiStar2 = Fun_PhiStar(x=Fn2,y=Fn1,theta=theta_hat)
+  
+  #PhiStar2  = -1/Fn2-
+  #  rep(1/theta_hat,times=n)*Fn2**rep(-theta_hat-1,times=n)/(Fn1**rep(-theta_hat,times=n)+Fn2**rep(-theta_hat,times=n)-1)+
+  #  rep(2+1/theta_hat,times=n)*Fn2**rep(-theta_hat-1,times=n)*((Fn1**rep(-theta_hat,times=n)+Fn2**rep(-theta_hat,times=n)-1)*(-rep(theta_hat,times=n)*log(Fn2)+1)+
+  #                                                               rep(theta_hat,times=n)*(Fn1**rep(-theta_hat,times=n)*log(Fn1)+Fn2**rep(-theta_hat,times=n)*log(Fn2)))/
+  #  (Fn1**rep(-theta_hat,times=n)+Fn2**rep(-theta_hat,times=n)-1)**2
   
   PhiStar1_matrix = matrix(rep(PhiStar1,times=n),ncol=n)
   PhiStar2_matrix = matrix(rep(PhiStar2,times=n),ncol=n)
@@ -670,8 +681,8 @@ Tau_hat = 4*(t(phat) %*% Fbar)-1
 
 # # Kendall's tau variance
 
-Matrix1 = rbind(diag(1,n+1) - A%*%B,-b)
-Matrix2 = (rbind(A%*%B%*%diag(Fbar),b%*%diag(Fbar)))%*%(diag(1,n+1) + B%*%D%*%B)%*%(diag(Fbar)%*%B%*%Fbar)
+Matrix1 = rbind(diag(1,n) - A%*%B,-b)
+Matrix2 = (rbind(A%*%B%*%diag(Fbar),b%*%diag(Fbar)))%*%(diag(1,n) + B%*%D%*%B)%*%(diag(Fbar)%*%B%*%Fbar)
 
 W_hat = ginv(Matrix1)%*%Matrix2
 
@@ -691,13 +702,13 @@ VarThetaHat = Fun_VarMLE(Z1=Z1,Z2=Z2,del=del,theta_hat=as.vector(theta_hat),Fn1=
 
 # #  # Convergence of the stimator (Simulation)
 
-n_vect = seq(from=100,to=300,by=10)
+n_vect = seq(from=100,to=500,by=50)
 
 theta_hat_vect = rep(NA,length(n_vect))
 
-theta = 1
+theta = 3
 
-beta = 1
+beta = 2
 
 for(i in 1:length(n_vect)){
   
@@ -747,11 +758,11 @@ for(i in 1:length(n_vect)){
 
 # # MLE and variance (through simulated)
 
-theta_vect =  seq(from=0.5,to=3,by=0.5)# exp(seq(from=0.1,to=1,by=0.1))-1 #  
+theta_vect =  seq(from=0.5,to=10,by=1.5)# exp(seq(from=0.1,to=1,by=0.1))-1 #  
 VarThetaHat = rep(NA,times=length(theta_vect))
 
 beta = 2
-n=200
+n=1000
 
 for(j in 1:length(theta_vect)){
   
