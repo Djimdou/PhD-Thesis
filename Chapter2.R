@@ -5,11 +5,12 @@
 
 library(copula) # for claytonCopula
 
+
+# # Simulating values from Archimedean copulas
+
 m = 1000
 
 W = 1:m/m #seq(from=1/n,to=1,by=0.01) # grid for the x-axis
-
-# # Simulating values from Archimedean copulas
 
 # Independence copula
 
@@ -122,7 +123,7 @@ h.interp = approx(x=c(0,Vn[cond],1), y=c(h[cond][1],h[cond],1), xout=W, method="
 Phi_est_int = (sum(h.interp) - cumsum(c(0,h.interp[-n])))/n
 
 
-# # # Graph
+# # # Graph: comparision Phi_est_int, Phi_est_diff, Phi_true
 
 Ylim = range(c(Phi_est_int,Phi_est_diff,Phi_true),na.rm = TRUE)
 
@@ -140,6 +141,93 @@ mtext(side=1, line=2, "t", font=2,cex=1.5)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2,hadj=1,padj=0)
 
 legend("topright",legend=c("true density","integral estimator","differential estimator"),lwd = 4,col=c("blue","red", "orange"),lty=1,cex=1.25,bty="n")
+
+
+# # # # # # # # #  Limiting behaviour # # # # # # # # # # # # # # # 
+
+W = seq(from=1/10,to=1,by=0.2) # grid for the x-axis
+
+# # Simulating values from the copulas
+
+# Independence copula
+
+cop <- indepCopula(dim=2)
+Phi_true = -log(W)
+
+# # Sampling X and Y
+
+N <- seq(from=10,to=5000,by=100)
+
+ConvergenceMAtrix <- matrix(rep(0,times=length(W)*length(N)),ncol=length(W)) # colnames = w, rownames = n
+colnames(ConvergenceMAtrix) <- c('w1','w2','w3','w4')
+
+for(n.index in 1:length(N)){
+  
+  #n.index <- 1
+  n <- N[n.index]
+  
+  alpha = 2 # Weibull distribution shape parameter
+  beta = 2 # Weibull distribution scale parameter
+  
+  MyCopula <- mvdc(copula=cop, # copula for (F(X), F(Y))
+                   margins=c("weibull","weibull"), # Weibull distribution for margins X and Y
+                   paramMargins=list(shape=alpha,scale=beta)) # alpha:shape, beta:scale
+  
+  
+  #set.seed(1)
+  XY <- rMvdc(n=n,MyCopula)
+  X <- XY[,1]
+  Y <- XY[,2]
+  
+  # # Pseudo-sample
+  
+  V = rep(NA,times=n)
+  
+  for(i in 1:n){
+    V[i] = (sum((X <= X[i])*(Y <= Y[i])))/(n-1)
+  }
+  
+  # # Empirical distribution
+  
+  Kn = ecdf(V)
+  Vn = V[order(V)]
+  
+  # # # Estimator 1: differential equation
+  
+  Phi_est = rep(0,times=n)
+  
+  for(i in 1:n){
+    if(Vn[i] < 1-1/n){
+      T = unique(c(Vn[(Vn[i] <= Vn) & (Vn <= 1-1/n)],1-1/n))
+      ProdTerm = rep(NA,times=length(T)-1)
+      ProdTerm = (Kn(T[-length(T)])-T[-length(T)])/(Kn(T[-length(T)])-T[-1])
+      Phi_est[i] = (1/n)*abs(prod(ProdTerm))
+    }
+  }
+  
+  Phi_est_diff = approx(x=c(0,Vn,1), y=c(Phi_est[1],Phi_est,0), xout=W, method="constant", ties = "ordered")$y 
+  ConvergenceMAtrix[n.index,] <- (sqrt(n)/log(1/n, base = exp(1)))*(Phi_est_diff-Phi_true)
+}
+
+# ConvergenceMAtrix may contain infinite values. Replacing such values.
+for(w.index in 1:length(W)){
+  if(sum(is.infinite(ConvergenceMAtrix[,w.index])) != 0){
+    ConvergenceMAtrix[,w.index][is.infinite(ConvergenceMAtrix[,w.index])] <- min(ConvergenceMAtrix[,w.index][is.finite(ConvergenceMAtrix[,w.index])])-0.25
+  }
+}
+
+#apply(X=ConvergenceMAtrix,
+#      MARGIN=2,
+#      FUN=function(vecteur){min(vecteur[is.finite(vecteur)])-0.25})
+
+MyColors <- c('aquamarine4','bisque1','blue','blueviolet','brown1','burlywood3','darkgreen')
+plot(ConvergenceMAtrix[,1],type='l',col=MyColors[1])
+
+for(w.index in 2:length(W)){
+  lines(ConvergenceMAtrix[,w.index],col=MyColors[w.index])
+}
+
+legend("bottomright",legend=W,lwd = 4,col=MyColors[1:length(W)],lty=1,cex=1.25,bty="n")
 
 
 
