@@ -1,7 +1,7 @@
 # # # # CHAPTER 2: ESTIMATION OF THE GENERATOR
 
 
-# # Preps
+# # Preps: loading libraries
 
 library(copula) # for claytonCopula
 
@@ -143,23 +143,77 @@ axis(2, at=Ylabels,labels=Ylabels,las=1,font=2,hadj=1,padj=0)
 legend("topright",legend=c("true density","integral estimator","differential estimator"),lwd = 4,col=c("blue","red", "orange"),lty=1,cex=1.25,bty="n")
 
 
-# # # # # # # # #  Limiting behaviour # # # # # # # # # # # # # # # 
 
-W = seq(from=1/10,to=1,by=0.2) # grid for the x-axis
+
+# # # # # # # # #  Limiting behaviour of Estimator 1 (differential) # # # # # # # # # # # # # 
+
 
 # # Simulating values from the copulas
 
-# Independence copula
 
-cop <- indepCopula(dim=2)
-Phi_true = -log(W)
+SimuCopula <- function(CopulaName,W){
+  
+  # # Description
+  # Function to simulate values of Archimedean copula and of the generator. 
+  # Limited to the independence, Clayton, Frank and AMH copulas
+  
+  # # Inputs
+  # CopulaName: name of the copula. One of 'Indep','Clayton','AMH' or 'Frank'
+  # W: vector of values in (0,1)
+  
+  # # Outputs
+  # A list with two elements: 
+  # * cop: copula 
+  # * gen_true: generator (phi)
+  
+  if(CopulaName == 'Indep'){
+    # Independence copula
+    
+    cop <- indepCopula(dim=2)
+    Phi_true = -log(W)
+  }
+  
+  if(CopulaName == 'Clayton'){
+    # Clayton copula
+    
+    theta = 3
+    cop <- claytonCopula(param=theta,dim=2)
+    Phi_true = (W**(-theta)-1)/theta
+  }
+  
+  if(CopulaName == 'AMH'){
+    # AMH copula
+    
+    theta = 0.5
+    cop <- amhCopula(param=theta,dim=2)
+    Phi_true = log((1-theta*(1-W))/W)/(1-theta)
+  }
+  
+  if(CopulaName == 'Frank'){
+    # Frank copula
+    
+    theta = -1
+    cop <- frankCopula(param=theta,dim=2)
+    Phi_true = -((exp(theta)-1)/theta)*log((exp(-theta*W)-1)/(exp(-theta)-1))
+  }
+  return(list(cop=cop,gen_true=Phi_true))
+}
+
+
+W = seq(from=0.2,to=0.9,by=0.2) # grid for the x-axis
+
+# CopulaNames <- c('Indep','Clayton','AMH','Frank')
+
+CopulaName <- 'Clayton' # select the copula
+cop = SimuCopula(CopulaName,W)$cop
+Phi_true = SimuCopula(CopulaName,W)$gen_true
 
 # # Sampling X and Y
 
-N <- seq(from=10,to=5000,by=100)
+N <- seq(from=10,to=1000,by=50)
 
 ConvergenceMAtrix <- matrix(rep(0,times=length(W)*length(N)),ncol=length(W)) # colnames = w, rownames = n
-colnames(ConvergenceMAtrix) <- c('w1','w2','w3','w4')
+colnames(ConvergenceMAtrix) <- paste('w',1:length(W),sep='')
 
 for(n.index in 1:length(N)){
   
@@ -174,7 +228,7 @@ for(n.index in 1:length(N)){
                    paramMargins=list(shape=alpha,scale=beta)) # alpha:shape, beta:scale
   
   
-  #set.seed(1)
+  set.seed(10)
   XY <- rMvdc(n=n,MyCopula)
   X <- XY[,1]
   Y <- XY[,2]
@@ -206,7 +260,7 @@ for(n.index in 1:length(N)){
   }
   
   Phi_est_diff = approx(x=c(0,Vn,1), y=c(Phi_est[1],Phi_est,0), xout=W, method="constant", ties = "ordered")$y 
-  ConvergenceMAtrix[n.index,] <- (sqrt(n)/log(1/n, base = exp(1)))*(Phi_est_diff-Phi_true)
+  ConvergenceMAtrix[n.index,] <- (sqrt(n)/log(1/n, base = exp(1)))*(Phi_est_diff-Phi_true)/Phi_true
 }
 
 # ConvergenceMAtrix may contain infinite values. Replacing such values.
@@ -220,18 +274,32 @@ for(w.index in 1:length(W)){
 #      MARGIN=2,
 #      FUN=function(vecteur){min(vecteur[is.finite(vecteur)])-0.25})
 
+# colors to be used to graph
 MyColors <- c('aquamarine4','bisque1','blue','blueviolet','brown1','burlywood3','darkgreen')
-plot(ConvergenceMAtrix[,1],type='l',col=MyColors[1])
+
+# axes ranges
+#Xlim = c(0,500)
+Ylim = range(ConvergenceMAtrix,na.rm = TRUE)
+
+# axis labels
+Xlabels = N #seq(from=0,to=500,by=50)
+Ylabels = format(seq(from=Ylim[1],to=Ylim[2],length.out=5),digits=2)
+
+plot(N,ConvergenceMAtrix[,1],type='l',col=MyColors[1],ylim=Ylim,lwd = 2,xlab="",ylab="",xaxt="none",yaxt="none")
 
 for(w.index in 2:length(W)){
-  lines(ConvergenceMAtrix[,w.index],col=MyColors[w.index])
+  lines(N,ConvergenceMAtrix[,w.index],col=MyColors[w.index],lwd = 2)
 }
 
-legend("bottomright",legend=W,lwd = 4,col=MyColors[1:length(W)],lty=1,cex=1.25,bty="n")
+axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
+mtext(side=1, line=2, "sample size (n)", font=2,cex=1.5)
+axis(2, at=Ylabels,labels=Ylabels,las=1,font=2,hadj=1,padj=0)
+
+legend("bottomright",legend=paste('w=',W,sep=''),lwd = 4,col=MyColors[1:length(W)],lty=1,cex=1.25,bty="n")
 
 
 
-#Ylim = range(c(Phi_est_int,Phi_true),na.rm = TRUE)
 
-#plot(W,Phi_est,type='l',col='red',ylim=Ylim)
-#lines(W,Phi_true,col='blue')
+
+
+
