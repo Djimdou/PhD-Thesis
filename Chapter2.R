@@ -145,11 +145,10 @@ legend("topright",legend=c("true density","integral estimator","differential est
 
 
 
-# # # # # # # # #  Limiting behaviour of Estimator 1 (differential) # # # # # # # # # # # # # 
+# # # # # # # # #  Limiting behavior of Estimator 1 (differential) # # # # # # # # # # # # # 
 
 
 # # Simulating values from the copulas
-
 
 SimuCopula <- function(CopulaName,W){
   
@@ -199,23 +198,23 @@ SimuCopula <- function(CopulaName,W){
   return(list(cop=cop,gen_true=Phi_true))
 }
 
-
-W = seq(from=0.2,to=0.9,by=0.2) # grid for the x-axis
+# Grid for the x-axis
+W = seq(from=0.2,to=0.9,by=0.2) 
 
 # CopulaNames <- c('Indep','Clayton','AMH','Frank')
 
-CopulaName <- 'Clayton' # select the copula
+CopulaName <- 'Frank' # select the copula
 cop = SimuCopula(CopulaName,W)$cop
 Phi_true = SimuCopula(CopulaName,W)$gen_true
 
 # # Sampling X and Y
 
-N <- seq(from=10,to=1000,by=50)
+N <- seq(from=0,to=1000,by=50) # the 0 will be ignored. N should have at least 2 elements.
 
-ConvergenceMAtrix <- matrix(rep(0,times=length(W)*length(N)),ncol=length(W)) # colnames = w, rownames = n
+ConvergenceMAtrix <- matrix(rep(0,times=length(W)*(length(N)-1)),ncol=length(W)) # colnames = w, rownames = n
 colnames(ConvergenceMAtrix) <- paste('w',1:length(W),sep='')
 
-for(n.index in 1:length(N)){
+for(n.index in 2:length(N)){ # ignoring the value 0 value in N
   
   #n.index <- 1
   n <- N[n.index]
@@ -228,7 +227,7 @@ for(n.index in 1:length(N)){
                    paramMargins=list(shape=alpha,scale=beta)) # alpha:shape, beta:scale
   
   
-  set.seed(10)
+  set.seed(5) # 5 for Clayton, AMH, indep
   XY <- rMvdc(n=n,MyCopula)
   X <- XY[,1]
   Y <- XY[,2]
@@ -260,7 +259,7 @@ for(n.index in 1:length(N)){
   }
   
   Phi_est_diff = approx(x=c(0,Vn,1), y=c(Phi_est[1],Phi_est,0), xout=W, method="constant", ties = "ordered")$y 
-  ConvergenceMAtrix[n.index,] <- (sqrt(n)/log(1/n, base = exp(1)))*(Phi_est_diff-Phi_true)/Phi_true
+  ConvergenceMAtrix[n.index-1,] <- (sqrt(n)/log(1/n, base = exp(1)))*(Phi_est_diff-Phi_true)/Phi_true
 }
 
 # ConvergenceMAtrix may contain infinite values. Replacing such values.
@@ -282,20 +281,20 @@ MyColors <- c('aquamarine4','bisque1','blue','blueviolet','brown1','burlywood3',
 Ylim = range(ConvergenceMAtrix,na.rm = TRUE)
 
 # axis labels
-Xlabels = N #seq(from=0,to=500,by=50)
+Xlabels = N[-1] #seq(from=0,to=500,by=50)
 Ylabels = format(seq(from=Ylim[1],to=Ylim[2],length.out=5),digits=2)
 
-plot(N,ConvergenceMAtrix[,1],type='l',col=MyColors[1],ylim=Ylim,lwd = 2,xlab="",ylab="",xaxt="none",yaxt="none")
+plot(N[-1],ConvergenceMAtrix[,1],type='l',col=MyColors[1],ylim=Ylim,lwd = 2,xlab="",ylab="",xaxt="none",yaxt="none")
 
 for(w.index in 2:length(W)){
-  lines(N,ConvergenceMAtrix[,w.index],col=MyColors[w.index],lwd = 2)
+  lines(N[-1],ConvergenceMAtrix[,w.index],col=MyColors[w.index],lwd = 2)
 }
 
 axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
-mtext(side=1, line=2, "sample size (n)", font=2,cex=1.5)
+mtext(side=1, line=3, "sample size n", font=2,cex=1.25)#
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2,hadj=1,padj=0)
 
-legend("bottomright",legend=paste('w=',W,sep=''),lwd = 4,col=MyColors[1:length(W)],lty=1,cex=1.25,bty="n")
+legend("bottomright",legend=paste('w=',W,sep=''),lwd = 3,col=MyColors[1:length(W)],lty=1,cex=1.25,bty="n")
 
 
 
