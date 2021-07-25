@@ -1,3 +1,4 @@
+#install.packages(c('tabulizer','copula','pracma','CASdatasets','SurvCorr'))
 library(tabulizer)
 library(MASS) # for ginv
 library(dplyr)
@@ -5,9 +6,96 @@ library(copula) # for claytonCopula
 library(pracma) # for NewtonRaphson procedure
 library(CASdatasets) # Canadian life insurance dataset 
 library(SurvCorr) # kidney dataset
+library(survival) # for Kaplan-Meier function
 
 
 # # # Functions
+
+
+# # - - - - - -  - - - - - - - - - - - - - - - 
+# # - - - - - -  - - - - - - - - - - - - - - - 
+
+
+
+# Dabrowska (1988) bivariate survival estimator, for comparison of my work
+# in 4.1.3 and Wang and Wells (2000)
+
+# Working on kidney data to calibrate the function. Not needed once the function is finished.
+data(kidney)
+
+n = dim(kidney)[1]
+
+#ordre = order(kidney$TIME1,kidney$TIME2)
+#del1 = kidney$STATUS1 
+#del2 = kidney$STATUS2
+
+T1 <- kidney$TIME1[which(kidney$STATUS1==1)]
+T1 <- c(0,unique(T1[order(T1)]))
+
+T2 <- kidney$TIME2[which(kidney$STATUS2==1)]
+T2 <- c(0,unique(T2[order(T2)]))
+
+D00 = D01 = D10 = D11 = R = rep(NA,times=length(T1)*length(T2))
+
+del1 <- kidney$STATUS1
+del2 <- kidney$STATUS2
+del <- del1*del2
+
+#unique(kidney[,c('TIME1','TIME2')],MARGIN=1) # no ties
+
+for(i in 1:length(T1)){
+  for(j in 1:length(T2)){
+    R[(i-1)*length(T2)+j] <- sum((kidney$TIME1 >= T1[i])*(kidney$TIME2 >= T2[j]))
+    D11[(i-1)*length(T2)+j] <- ifelse(sum((kidney$TIME1 == T1[i]) & (kidney$TIME2 == T2[j]))==1,
+                                      del[(kidney$TIME1 == T1[i]) & (kidney$TIME2 == T2[j])],
+                                      0) 
+    D10[(i-1)*length(T2)+j] <- ifelse(sum((kidney$TIME1 == T1[i]) & (kidney$TIME2 == T2[j]))==1,
+                                      del1[(kidney$TIME1 == T1[i]) & (kidney$TIME2 == T2[j])],
+                                      0)
+    D01[(i-1)*length(T2)+j] <- ifelse(sum((kidney$TIME1 == T1[i]) & (kidney$TIME2 == T2[j]))==1,
+                                      del2[(kidney$TIME1 == T1[i]) & (kidney$TIME2 == T2[j])],
+                                      0)
+    D00[(i-1)*length(T2)+j] <- ifelse(sum((kidney$TIME1 == T1[i]) & (kidney$TIME2 == T2[j]))==1,
+                                      1-del[(kidney$TIME1 == T1[i]) & (kidney$TIME2 == T2[j])],
+                                      0)
+  }
+}
+
+# Univariate Kaplan-Meier estimators
+
+f1 <- survfit(Surv(time=TIME1, event=STATUS1) ~ 1,data=kidney)
+T.expanded = as.matrix(expand.grid(T1,T2))
+T1.expanded = T.expanded[,'Var1'][order(T.expanded[,'Var1'])]
+
+#step interpolation for prediction
+f1.interp = approx(x=f1$time, y=f1$surv, xout=T1.expanded, method="constant", ties = mean)$y 
+
+f2 <- survfit(Surv(time=TIME2, event=STATUS2) ~ 1,data=kidney)
+T.expanded = as.matrix(expand.grid(T1,T2))
+T2.expanded = T.expanded[,'Var2'][order(T.expanded[,'Var2'])]
+
+#step interpolation for prediction
+f2.interp = approx(x=f2$time, y=f2$surv, xout=T2.expanded, method="constant", ties = mean)$y 
+
+# help: https://cran.r-project.org/web/packages/survival/survival.pdf
+
+# Dabrowska's estimator
+
+F_Dab <- rep(0,times=1+length(T1)*length(T2))
+F_Dab[1] <- 1
+
+for(i in 1:length(T1)*length(T2)){
+  for(j in 1:length(T2)){
+    if(D00[i]!=0){
+      F_Dab[i] <- (1/F_Dab[i])*(D00[i]*R[i]/((D10[i]+D00[i])*(D01[i]+D00[i])))
+    }
+  }
+}
+
+
+# # - - - - - -  - - - - - - - - - - - - - - - 
+# # - - - - - -  - - - - - - - - - - - - - - - 
+
 
 FunZDel = function(n,theta,lambda=1,seed,alpha=2,beta=2){
   
@@ -99,9 +187,10 @@ Fun_ThetaHatFn12 <- function(Z1,Z2,del,n,phat,Fbar){
   # Starting point of Newton-Raphson
   
   Tau_hat = 4*(t(phat) %*% Fbar)-1
-  Theta0 = 2*Tau_hat/(1-Tau_hat)
+  Theta0 = 2*Tau_hat/(1-Tau_hat) # Clayton
+  #Theta0 = 1+4(incgam(3,1.2)/)
   
-  s = 10**(-3)
+  #s = 10**(-3)
   
   # # MLE of theta
   
@@ -143,27 +232,46 @@ Fun_ThetaHatFn12 <- function(Z1,Z2,del,n,phat,Fbar){
   Fn2 = 1-Fn2bar
   #Fn2[Fn2 < s]=s
   
-  #x=matrix(seq(from=0.01,to=50,by=0.1)); ForPlot=apply(X=x,MARGIN=1,FUN=DiffLogL);
-  #plot(x,ForPlot,type='l',ylim=range(c(ForPlot,0)));abline(h=0);
-  
   # MLE estimate of theta
   # theta_hat[i] = optimise(f=LogL,interval=c(0,10**2),maximum = TRUE)$maximum
   
   Fn1=Fn1[-(n+1)]
   Fn2=Fn2[-(n+1)]
   
-  # Log-pseudo-likelihood function derivative
-  DiffLogL = function(x){
+  # Log-pseudo-likelihood function derivative aka score function
+  DiffLogL = function(x){ # Clayton
+    #x = 10
     sum(phat*(rep(1/(x+1),times=n)-
                 log(Fn1*Fn2)+
                 (rep(1/x**2,times=n))*log(Fn1**(rep(-x,times=n))+Fn2**(rep(-x,times=n))-1)+
-                (rep(2+1/x,times=n))*(Fn1**(rep(-x,times=n))*log(Fn1)+
+                (rep(2+1/x,times=n))*(Fn1**(rep(-x,times=n))*log(Fn1)+ 
+                # this last term (the line above + the 2 below) has limit log(a)(log(b)+2)+2log(b)
                                              Fn2**(rep(-x,times=n))*log(Fn2))/
-                                      (Fn1**(rep(-x,times=n))+Fn2**(rep(-x,times=n))-1)))
-  }
+                                      (Fn1**(rep(-x,times=n))+Fn2**(rep(-x,times=n))-1)),na.rm=TRUE)
   
-  theta_hat = newtonRaphson(fun=DiffLogL, x0=Theta0)$root
-  #theta_hat[i] = uniroot(f=DiffLogL, interval=c(0.01,50))$root
+    #term1 = suppressWarnings(log(Fn1*Fn2))
+    #term1[is.na(term1)] = -10**6# min(term1[!is.na(term1)])-100
+    #term2 = suppressWarnings((rep(1/x**2,times=n))*log(Fn1**(rep(-x,times=n))+Fn2**(rep(-x,times=n))-1)+
+    #  (rep(2+1/x,times=n))*(Fn1**(rep(-x,times=n))*log(Fn1)+
+    #                                Fn2**(rep(-x,times=n))*log(Fn2))/
+    #                      (Fn1**(rep(-x,times=n))+Fn2**(rep(-x,times=n))-1))
+    # term2+term3 has limit log(a)(log(b)+2)+2log(b)
+    #term2[is.na(term2)] = -10**6# min(term3[!is.na(term3)])-100
+    
+    #return(sum(phat*(rep(1/(x+1),times=n)-term1+term2)))
+    #return(na.omit(result))
+   }
+    
+  #X=matrix(seq(from=0,to=15,by=0.01)); ForPlot=apply(X=X,MARGIN=1,FUN=DiffLogL);
+  #plot(X,ForPlot,type='l',ylim=range(c(ForPlot,0)));abline(h=0);
+  
+  #  DiffLogL = function(x){ # 4.2.20 Nelsen
+  #    (-1/x)*sum(phat*((-exp(Fn1**(-rep(-x,times=n)))*Fn1**(-rep(-x,times=n))*log(Fn1)-exp(Fn2**(-rep(-x,times=n)))*Fn2**(-rep(-x,times=n))*log(Fn2))/
+  #      ((exp(Fn1**(-rep(-x,times=n)))+exp(Fn2**(-rep(-x,times=n)))-exp(1))*log(exp(Fn1**(-rep(-x,times=n)))+exp(Fn2**(-rep(-x,times=n)))-exp(1)))))
+  #  }
+    
+  #theta_hat = newtonRaphson(fun=DiffLogL, x0=Theta0)$root
+  theta_hat = uniroot(f=DiffLogL, interval=c(0.01,15))$root
   
   # Coding Newton-Raphson:
   # https://rpubs.com/aaronsc32/newton-raphson-method#:~:text=%23%23%20%5B1%5D%203.162278-,Newton%2DRaphson%20Method%20in%20R,rootSolve%20package%20features%20the%20uniroot.
@@ -268,6 +376,9 @@ Fun_VarMLE <- function(Z1,Z2,del,theta_hat,Fn1,Fn2,n){
   #  rep(2+1/theta_hat,times=n)*Fn2**rep(-theta_hat-1,times=n)*((Fn1**rep(-theta_hat,times=n)+Fn2**rep(-theta_hat,times=n)-1)*(-rep(theta_hat,times=n)*log(Fn2)+1)+
   #                                                               rep(theta_hat,times=n)*(Fn1**rep(-theta_hat,times=n)*log(Fn1)+Fn2**rep(-theta_hat,times=n)*log(Fn2)))/
   #  (Fn1**rep(-theta_hat,times=n)+Fn2**rep(-theta_hat,times=n)-1)**2
+  
+  #PhiStar1[is.nan(PhiStar1)] <- 0
+  #PhiStar2[is.nan(PhiStar2)] <- 0
   
   PhiStar1_matrix = matrix(rep(PhiStar1,times=n),ncol=n)
   PhiStar2_matrix = matrix(rep(PhiStar2,times=n),ncol=n)
@@ -810,4 +921,113 @@ for(j in 1:length(theta_vect)){
   
   VarThetaHat[j] = Fun_VarMLE(Z1=Z1,Z2=Z2,del=del,theta_hat=theta_hat,Fn1=Fn1,Fn2=Fn2,n=n)
 }
+
+
+# # # MLE with Epidemiology Data from 
+# McGilchrist, C. A., and C. W. Aisbett. "Regression with Frailty in Survival Analysis."
+# Biometrics, vol. 47, no. 2, 1991, pp. 461-466.
+
+# Assuming a copula structure
+
+# Data: https://rdrr.io/cran/SurvCorr/man/kidney.html
+
+# Extract the table
+data(kidney)
+
+# Estimator
+
+n=dim(kidney)[1]
+
+del = (kidney$STATUS1 == 1) * (kidney$STATUS2 == 1)
+
+ordre = order(kidney$TIME1,kidney$TIME2)
+Z_ordered = cbind(kidney$TIME1,kidney$TIME2)[ordre,]
+
+del=c(del[ordre],1)
+
+xinf=max(Z_ordered[,1],Z_ordered[,2])+1
+Z1=c(Z_ordered[,1],xinf)
+Z2=c(Z_ordered[,2],xinf)
+
+# Phat and Fbar
+
+az1=matrix(rep(Z1,n+1),ncol=n+1)
+az2=matrix(rep(Z2,n+1),ncol=n+1)
+A=(t(az1)>=az1)*(t(az2)>=az2)
+# Because of ties, A may not be quite upper triangular. We need to convert some numbers to 0.
+A[lower.tri(A, diag = FALSE)] = 0
+rsumA=apply(A,1,sum)
+
+eps=1/(n+1)
+
+b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+B=diag(b)
+
+Id=diag(rep(1,n+1))
+M=rbind(Id-A%*%B,-t(b))
+MMinv=solve(t(M)%*%M)
+Fbar=as.vector(MMinv%*%b) ### <---- THIS IS THE \bar{F} VECTOR
+phat=(ginv(A)%*%Fbar)#[-(n+1)] # weights
+
+phat = phat[-(n+1)]
+Fbar=Fbar[-(n+1)]
+
+# Graph of Fbar
+
+FBarFun = function(x,y){
+  sum(phat[((Z1 >= x)*(Z2 >= y))])
+}
+
+x = unique(Z1[order(Z1)])
+y = unique(Z2[order(Z2)])
+F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
+
+persp(x,y,F_bar_grid, theta = 30, phi = 30)
+
+# #  Pseudo-likelihood maximization
+
+ThetaFn12 = Fun_ThetaHatFn12(Z1,Z2,del,n,phat,Fbar)
+theta_hat = ThetaFn12[[1]]
+
+# Variance estimator
+
+#Fbar=Fbar[-(n+1)]
+#phat=phat[-(n+1)]
+b=b[-(n+1)]
+A=A[-(n+1),][,-(n+1)]
+B=B[-(n+1),][,-(n+1)]
+Id=diag(1,n)
+M=rbind(Id-A%*%B,-t(b))
+MMinv=solve(t(M)%*%M)
+
+D=(1-A)*(1-t(A))*(A%*%t(A))
+bf=b*Fbar
+BF=diag(bf)
+S=rbind(A%*%BF,t(bf))
+R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
+U=(t(M)%*%R)%*%M
+V=(MMinv%*%U)%*%MMinv
+
+# # Kendall's tau estimate
+
+Tau_hat = 4*(t(phat) %*% Fbar)-1
+
+# # Kendall's tau variance
+
+Matrix1 = rbind(diag(1,n) - A%*%B,-b)
+Matrix2 = (rbind(A%*%B%*%diag(Fbar),b%*%diag(Fbar)))%*%(diag(1,n) + B%*%D%*%B)%*%(diag(Fbar)%*%B%*%Fbar)
+
+W_hat = ginv(Matrix1)%*%Matrix2
+
+V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
+  2*t(Fbar)%*%B%*%W_hat+
+  t(Fbar)%*%B%*%diag(Fbar)%*%(diag(1,n)+B%*%D%*%B)%*%diag(Fbar)%*%B%*%Fbar
+
+# # MLE and variance
+
+#theta_hat = ThetaFn12[[1]]
+Fn1 = ThetaFn12[[2]]
+Fn2 = ThetaFn12[[3]]
+
+VarThetaHat = Fun_VarMLE(Z1=Z1,Z2=Z2,del=del,theta_hat=as.vector(theta_hat),Fn1=Fn1,Fn2=Fn2,n=n)
 
