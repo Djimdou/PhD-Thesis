@@ -25,10 +25,6 @@ data(kidney)
 
 n = dim(kidney)[1]
 
-#ordre = order(kidney$TIME1,kidney$TIME2)
-#del1 = kidney$STATUS1 
-#del2 = kidney$STATUS2
-
 T1 <- kidney$TIME1[which(kidney$STATUS1==1)]
 T1 <- c(0,unique(T1[order(T1)]))
 
@@ -37,60 +33,51 @@ T2 <- c(0,unique(T2[order(T2)]))
 
 D00 = D01 = D10 = D11 = R = rep(NA,times=length(T1)*length(T2))
 
-del1 <- kidney$STATUS1
-del2 <- kidney$STATUS2
-del <- del1*del2
-
 #unique(kidney[,c('TIME1','TIME2')],MARGIN=1) # no ties
 
 for(i in 1:length(T1)){
   for(j in 1:length(T2)){
     R[(i-1)*length(T2)+j] <- sum((kidney$TIME1 >= T1[i])*(kidney$TIME2 >= T2[j]))
-    D11[(i-1)*length(T2)+j] <- ifelse(sum((kidney$TIME1 == T1[i]) & (kidney$TIME2 == T2[j]))==1,
-                                      del[(kidney$TIME1 == T1[i]) & (kidney$TIME2 == T2[j])],
-                                      0) 
-    D10[(i-1)*length(T2)+j] <- ifelse(sum((kidney$TIME1 == T1[i]) & (kidney$TIME2 == T2[j]))==1,
-                                      del1[(kidney$TIME1 == T1[i]) & (kidney$TIME2 == T2[j])],
-                                      0)
-    D01[(i-1)*length(T2)+j] <- ifelse(sum((kidney$TIME1 == T1[i]) & (kidney$TIME2 == T2[j]))==1,
-                                      del2[(kidney$TIME1 == T1[i]) & (kidney$TIME2 == T2[j])],
-                                      0)
-    D00[(i-1)*length(T2)+j] <- ifelse(sum((kidney$TIME1 == T1[i]) & (kidney$TIME2 == T2[j]))==1,
-                                      1-del[(kidney$TIME1 == T1[i]) & (kidney$TIME2 == T2[j])],
-                                      0)
+    D11[(i-1)*length(T2)+j] <- sum((kidney$TIME1 >= T1[i])*(kidney$TIME2 >= T2[j])*(kidney$STATUS1[i] * kidney$STATUS2[j]))
+    D10[(i-1)*length(T2)+j] <- sum((kidney$TIME1 >= T1[i])*(kidney$TIME2 >= T2[j])*(kidney$STATUS1[i] * (1-kidney$STATUS2[j])))
+    D01[(i-1)*length(T2)+j] <- sum((kidney$TIME1 >= T1[i])*(kidney$TIME2 >= T2[j])*((1-kidney$STATUS1[i]) * kidney$STATUS2[j]))
+    D00[(i-1)*length(T2)+j] <- sum((kidney$TIME1 >= T1[i])*(kidney$TIME2 >= T2[j])*((1-kidney$STATUS1[i]) * (1-kidney$STATUS2[j])))
   }
 }
 
 # Univariate Kaplan-Meier estimators
 
 f1 <- survfit(Surv(time=TIME1, event=STATUS1) ~ 1,data=kidney)
+f2 <- survfit(Surv(time=TIME2, event=STATUS2) ~ 1,data=kidney)
+
 T.expanded = as.matrix(expand.grid(T1,T2))
 T1.expanded = T.expanded[,'Var1'][order(T.expanded[,'Var1'])]
-
-#step interpolation for prediction
-f1.interp = approx(x=f1$time, y=f1$surv, xout=T1.expanded, method="constant", ties = mean)$y 
-
-f2 <- survfit(Surv(time=TIME2, event=STATUS2) ~ 1,data=kidney)
-T.expanded = as.matrix(expand.grid(T1,T2))
 T2.expanded = T.expanded[,'Var2'][order(T.expanded[,'Var2'])]
 
 #step interpolation for prediction
-f2.interp = approx(x=f2$time, y=f2$surv, xout=T2.expanded, method="constant", ties = mean)$y 
-
-# help: https://cran.r-project.org/web/packages/survival/survival.pdf
+f1.interp = approx(x=c(0,f1$time), y=c(1,f1$surv), xout=T1.expanded, method="constant", ties = mean)$y 
+f2.interp = approx(x=c(0,f2$time), y=c(1,f2$surv), xout=T2.expanded, method="constant", ties = mean)$y 
 
 # Dabrowska's estimator
 
-F_Dab <- rep(0,times=1+length(T1)*length(T2))
-F_Dab[1] <- 1
+F_Dab <- rep(NA,times=length(T1)*length(T2))
 
-for(i in 1:length(T1)*length(T2)){
+# 1st formula: seems worse, cannot even have non-0 values in D00[c(1,(1:length(T1))*length(T2))]
+
+# 2nd formula: not working well
+F_Dab[1:length(T2)] <- unique(f2.interp)
+F_Dab[(1:length(T1)-1)*length(T2)+1] <- f1.interp[(1:length(T1)-1)*length(T2)+1]
+
+for(i in 2:length(T1)){
   for(j in 1:length(T2)){
-    if(D00[i]!=0){
-      F_Dab[i] <- (1/F_Dab[i])*(D00[i]*R[i]/((D10[i]+D00[i])*(D01[i]+D00[i])))
-    }
+    if((D00[(i-1)*length(T2)+j]!=0)& !(((i-1)*length(T2)+j) %in% ((1:length(T1)-1)*length(T2)+1))){
+      F_Dab[(i-1)*length(T2)+j] <- (F_Dab[(i-1)*length(T2)+j-1]*F_Dab[(i-2)*length(T2)+j]*D00[(i-1)*length(T2)+j]*R[(i-1)*length(T2)+j])/
+        (F_Dab[(i-2)*length(T2)+j-1]*(D10[(i-1)*length(T2)+j]+D00[(i-1)*length(T2)+j])*(D01[(i-1)*length(T2)+j]+D00[(i-1)*length(T2)+j]))
+    }else{F_Dab[(i-1)*length(T2)+j] <- 0}
   }
 }
+
+
 
 
 # # - - - - - -  - - - - - - - - - - - - - - - 
