@@ -4,7 +4,7 @@ library(MASS) # for ginv
 library(dplyr)
 library(copula) # for claytonCopula
 library(pracma) # for NewtonRaphson procedure
-library(CASdatasets) # Canadian life insurance dataset 
+library(CASdatasets) # Canadian life insurance dataset # nit available for some R versions
 library(SurvCorr) # kidney dataset
 library(survival) # for Kaplan-Meier function
 
@@ -65,15 +65,17 @@ F_Dab <- rep(NA,times=length(T1)*length(T2))
 # 1st formula: seems worse, cannot even have non-0 values in D00[c(1,(1:length(T1))*length(T2))]
 
 # 2nd formula: not working well
-F_Dab[1:length(T2)] <- unique(f2.interp)
-F_Dab[(1:length(T1)-1)*length(T2)+1] <- f1.interp[(1:length(T1)-1)*length(T2)+1]
+F_Dab[1:length(T2)] <- unique(f2.interp) # positions for i=1 (T1=0)
+F_Dab[(1:length(T1)-1)*length(T2)+1] <- f1.interp[(1:length(T1)-1)*length(T2)+1] # positions for j=1 (T2=0)
 
 for(i in 2:length(T1)){
   for(j in 1:length(T2)){
-    if((D00[(i-1)*length(T2)+j]!=0)& !(((i-1)*length(T2)+j) %in% ((1:length(T1)-1)*length(T2)+1))){
-      F_Dab[(i-1)*length(T2)+j] <- (F_Dab[(i-1)*length(T2)+j-1]*F_Dab[(i-2)*length(T2)+j]*D00[(i-1)*length(T2)+j]*R[(i-1)*length(T2)+j])/
-        (F_Dab[(i-2)*length(T2)+j-1]*(D10[(i-1)*length(T2)+j]+D00[(i-1)*length(T2)+j])*(D01[(i-1)*length(T2)+j]+D00[(i-1)*length(T2)+j]))
-    }else{F_Dab[(i-1)*length(T2)+j] <- 0}
+    if (!(((i-1)*length(T2)+j) %in% ((1:length(T1)-1)*length(T2)+1))){#avoid the positions for j=1 (T2=0)
+      if((D00[(i-1)*length(T2)+j]!=0)){
+        F_Dab[(i-1)*length(T2)+j] <- (F_Dab[(i-1)*length(T2)+j-1]*F_Dab[(i-2)*length(T2)+j]*D00[(i-1)*length(T2)+j]*R[(i-1)*length(T2)+j])/
+          (F_Dab[(i-2)*length(T2)+j-1]*(D10[(i-1)*length(T2)+j]+D00[(i-1)*length(T2)+j])*(D01[(i-1)*length(T2)+j]+D00[(i-1)*length(T2)+j]))
+      }else{F_Dab[(i-1)*length(T2)+j] <- 0}
+    }
   }
 }
 
