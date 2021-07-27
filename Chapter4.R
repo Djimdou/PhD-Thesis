@@ -8,6 +8,10 @@ library(CASdatasets) # Canadian life insurance dataset # nit available for some 
 library(SurvCorr) # kidney dataset
 library(survival) # for Kaplan-Meier function
 
+install.packages('mhazard')
+library(mhazard) # for Dabrowska (1988) estimator for bivariate survivor
+
+
 
 # # # Functions
 
@@ -20,67 +24,38 @@ library(survival) # for Kaplan-Meier function
 # Dabrowska (1988) bivariate survival estimator, for comparison of my work
 # in 4.1.3 and Wang and Wells (2000)
 
-# Working on kidney data to calibrate the function. Not needed once the function is finished.
+#install.packages(c('mhazard','SurvCorr'))
+#update.packages('Rcpp') # need to update 'Rcpp'
+library(mhazard) # for Dabrowska (1988) estimator for bivariate survivor
+library(SurvCorr) # kidney dataset
+
 data(kidney)
+model_dab <- KM2(Y1=kidney$TIME1,Y2=kidney$TIME2,Delta1=kidney$STATUS1,Delta2=kidney$STATUS2,estimator="dabrowska")
 
-n = dim(kidney)[1]
+# Dabrowska estimator, at grid of the observed data
 
-T1 <- kidney$TIME1[which(kidney$STATUS1==1)]
-T1 <- c(0,unique(T1[order(T1)]))
+T1.unique <- unique(c(0,kidney$TIME1))[order(unique(c(0,kidney$TIME1)))]
+T2.unique <- unique(c(0,kidney$TIME2))[order(unique(c(0,kidney$TIME2)))]
+F_dab <- matrix(NA,nrow=length(T1.unique),ncol=length(T2.unique))
 
-T2 <- kidney$TIME2[which(kidney$STATUS2==1)]
-T2 <- c(0,unique(T2[order(T2)]))
-
-D00 = D01 = D10 = D11 = R = rep(NA,times=length(T1)*length(T2))
-
-#unique(kidney[,c('TIME1','TIME2')],MARGIN=1) # no ties
-
-for(i in 1:length(T1)){
-  for(j in 1:length(T2)){
-    R[(i-1)*length(T2)+j] <- sum((kidney$TIME1 >= T1[i])*(kidney$TIME2 >= T2[j]))
-    D11[(i-1)*length(T2)+j] <- sum((kidney$TIME1 >= T1[i])*(kidney$TIME2 >= T2[j])*(kidney$STATUS1[i] * kidney$STATUS2[j]))
-    D10[(i-1)*length(T2)+j] <- sum((kidney$TIME1 >= T1[i])*(kidney$TIME2 >= T2[j])*(kidney$STATUS1[i] * (1-kidney$STATUS2[j])))
-    D01[(i-1)*length(T2)+j] <- sum((kidney$TIME1 >= T1[i])*(kidney$TIME2 >= T2[j])*((1-kidney$STATUS1[i]) * kidney$STATUS2[j]))
-    D00[(i-1)*length(T2)+j] <- sum((kidney$TIME1 >= T1[i])*(kidney$TIME2 >= T2[j])*((1-kidney$STATUS1[i]) * (1-kidney$STATUS2[j])))
+for(i in 1:length(T1.unique)){
+  for(j in 1:length(T2.unique)){
+    F_dab[i,j] <- model_dab$Fhat[1+min(which(model_dab$T1 >= T1.unique[i])),1+min(which(model_dab$T2 >= T2.unique[j]))]
   }
 }
 
-# Univariate Kaplan-Meier estimators
+F_dab[1,1] <- 1 # needed? shouldn't be automatic from the computations?
 
-f1 <- survfit(Surv(time=TIME1, event=STATUS1) ~ 1,data=kidney)
-f2 <- survfit(Surv(time=TIME2, event=STATUS2) ~ 1,data=kidney)
+# masses
+F_dab_mass <- matrix(NA,nrow=dim(F_dab)[1],ncol=dim(F_dab)[2])
+F_dab_mass[1,] <- F_dab[1,]
+F_dab_mass[,1] <- F_dab[,1]
 
-T.expanded = as.matrix(expand.grid(T1,T2))
-T1.expanded = T.expanded[,'Var1'][order(T.expanded[,'Var1'])]
-T2.expanded = T.expanded[,'Var2'][order(T.expanded[,'Var2'])]
-
-#step interpolation for prediction
-f1.interp = approx(x=c(0,f1$time), y=c(1,f1$surv), xout=T1.expanded, method="constant", ties = mean)$y 
-f2.interp = approx(x=c(0,f2$time), y=c(1,f2$surv), xout=T2.expanded, method="constant", ties = mean)$y 
-
-# Dabrowska's estimator
-
-F_Dab <- rep(NA,times=length(T1)*length(T2))
-
-# 1st formula: seems worse, cannot even have non-0 values in D00[c(1,(1:length(T1))*length(T2))]
-
-# 2nd formula: not working well
-F_Dab[1:length(T2)] <- unique(f2.interp) # positions for i=1 (T1=0)
-F_Dab[(1:length(T1)-1)*length(T2)+1] <- f1.interp[(1:length(T1)-1)*length(T2)+1] # positions for j=1 (T2=0)
-
-for(i in 2:length(T1)){
-  for(j in 1:length(T2)){
-    if (!(((i-1)*length(T2)+j) %in% ((1:length(T1)-1)*length(T2)+1))){#avoid the positions for j=1 (T2=0)
-      if((D00[(i-1)*length(T2)+j]!=0)){
-        F_Dab[(i-1)*length(T2)+j] <- (F_Dab[(i-1)*length(T2)+j-1]*F_Dab[(i-2)*length(T2)+j]*D00[(i-1)*length(T2)+j]*R[(i-1)*length(T2)+j])/
-          (F_Dab[(i-2)*length(T2)+j-1]*(D10[(i-1)*length(T2)+j]+D00[(i-1)*length(T2)+j])*(D01[(i-1)*length(T2)+j]+D00[(i-1)*length(T2)+j]))
-      }else{F_Dab[(i-1)*length(T2)+j] <- 0}
-    }
+for(i in 2:dim(F_dab)[1]){
+  for(j in 2:dim(F_dab)[2]){
+    F_dab_mass[i,j] <- F_dab[i,j]-F_dab[i-1,j]-F_dab[i,j-1]+F_dab[i-1,j-1]
   }
 }
-
-
-
 
 # # - - - - - -  - - - - - - - - - - - - - - - 
 # # - - - - - -  - - - - - - - - - - - - - - - 
