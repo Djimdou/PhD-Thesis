@@ -12,6 +12,14 @@ install.packages('mhazard')
 library(mhazard) # for Dabrowska (1988) estimator for bivariate survivor
 
 
+# Installing copula package in colab may require 'gsl'. To install gsl in colab:
+# https://stackoverflow.com/questions/64009256/rcppgsl-install-fails-on-google-colab-r-notebook
+# 1. open PyThon notebook in Colab Google
+# 2. Run the following set of commands:
+# # !sudo apt install libgsl-dev
+# # !pip install rpy2
+# # %reload_ext rpy2.ipython
+# 3. Continue working in the Python notebook, by adding %%R at the beginning of each cell
 
 # # # Functions
 
@@ -26,36 +34,102 @@ library(mhazard) # for Dabrowska (1988) estimator for bivariate survivor
 
 #install.packages(c('mhazard','SurvCorr'))
 #update.packages('Rcpp') # need to update 'Rcpp'
-library(mhazard) # for Dabrowska (1988) estimator for bivariate survivor
+
 library(SurvCorr) # kidney dataset
 
 data(kidney)
 model_dab <- KM2(Y1=kidney$TIME1,Y2=kidney$TIME2,Delta1=kidney$STATUS1,Delta2=kidney$STATUS2,estimator="dabrowska")
 
-# Dabrowska estimator, at grid of the observed data
+# Function giving Wang and Wells gamma (tau with ties) estimates from a data set
 
-T1.unique <- unique(c(0,kidney$TIME1))[order(unique(c(0,kidney$TIME1)))]
-T2.unique <- unique(c(0,kidney$TIME2))[order(unique(c(0,kidney$TIME2)))]
-F_dab <- matrix(NA,nrow=length(T1.unique),ncol=length(T2.unique))
-
-for(i in 1:length(T1.unique)){
-  for(j in 1:length(T2.unique)){
-    F_dab[i,j] <- model_dab$Fhat[1+min(which(model_dab$T1 >= T1.unique[i])),1+min(which(model_dab$T2 >= T2.unique[j]))]
+GammaWangWellsFunc <- function(dataset){
+  
+  # Call example: GammaWangWellsFunc(kidney)
+  
+  require(mhazard) # for Dabrowska (1988) estimator for bivariate survivor
+  
+  # Dabrowska estimator, at grid of the observed data
+  
+  T1.unique <- unique(c(0,dataset$TIME1))[order(unique(c(0,dataset$TIME1)))]
+  T2.unique <- unique(c(0,dataset$TIME2))[order(unique(c(0,dataset$TIME2)))]
+  F_dab <- matrix(NA,nrow=length(T1.unique),ncol=length(T2.unique))
+  
+  model_dab <- KM2(Y1=mydata$TIME1,Y2=mydata$TIME2,Delta1=mydata$STATUS1,Delta2=mydata$STATUS2,estimator="dabrowska")
+  
+  for(i in 1:length(T1.unique)){
+    for(j in 1:length(T2.unique)){
+      
+      pos.i = 1+min(which(model_dab$T1 >= T1.unique[i]))
+      pos.j = 1+min(which(model_dab$T2 >= T1.unique[j]))
+      
+      if(is.finite(pos.i) & is.finite(pos.j)){
+        F_dab[i,j] <- model_dab$Fhat[pos.i,pos.j]
+      }else{
+        if(is.infinite(pos.i)){pos.i = max(mydata$TIME1)+1}
+        if(is.infinite(pos.j)){pos.j = max(mydata$TIME2)+1}
+        
+        F_dab[i,j] <- KM2(Y1=mydata$TIME1,Y2=mydata$TIME2,Delta1=mydata$STATUS1,Delta2=mydata$STATUS2,newT1=pos.i,newT2=pos.j,estimator="dabrowska")$Fhat_est
+        
+      }
+      #F_dab[i,j] <- model_dab$Fhat[1+min(which(model_dab$T1 >= T1.unique[i])),1+min(which(model_dab$T2 >= T2.unique[j]))]
+    }
   }
+  
+  F_dab[1,1] <- 1 # needed? shouldn't be automatic from the computations?
+  
+  # Masses, at grid of the observed data
+  
+  F_dab_mass <- matrix(NA,nrow=dim(F_dab)[1],ncol=dim(F_dab)[2])
+  F_dab_mass[1,] <- F_dab[1,]
+  F_dab_mass[,1] <- F_dab[,1]
+  
+  for(i in 2:dim(F_dab)[1]){
+    for(j in 2:dim(F_dab)[2]){
+      F_dab_mass[i,j] <- F_dab[i,j]-F_dab[i-1,j]-F_dab[i,j-1]+F_dab[i-1,j-1]
+    }
+  }
+  
+  # Kendall's tau (tau_tilde of Wang and Wells)
+  
+  tau_tilde <- 4*sum(F_dab_mass[-1,-1] * F_dab[-1,-1])-1
+  tau_tilde
+  
+  # Kendall's tau modified for ties (gamma of Wang and Wells)
+  
+  # ties sets
+  O1 <- unique(dataset[duplicated(dataset$TIME1) & dataset$STATUS1==1,"TIME1"])
+  O2 <- unique(dataset[duplicated(dataset$TIME2) & dataset$STATUS2==1,"TIME2"])
+  
+  if(length(O1)*length(O2)!=0){# if ties on T1 and T2. Need to rewrite this later.
+    
+    # Probability of ties
+    
+    Pr1 <- rep(NA,times=length(O1))
+    for(l in 1:length(O1)){
+      Pr1[l] <- (F_dab[which(T1.unique==O1[l])-1,1]-F_dab[which(T1.unique==O1[l]),1])**2
+    }
+    
+    Pr2 <- rep(NA,times=length(O2))
+    for(m in 1:length(O2)){
+      Pr2[m] <- (F_dab[which(T2.unique==O2[m])-1,1]-F_dab[which(T2.unique==O2[m]),1])**2
+    }
+    
+    Pr12 <- matrix(NA,nrow=length(O1),ncol=length(O2))
+    for(l in 1:length(O1)){
+      for(m in 1:length(O2)){
+        Pr12[l,m] <- F_dab_mass[which(T1.unique==O1[l]),which(T2.unique==O2[m])]**2
+      }
+    }
+    
+    ProbTie <- sum(Pr1) + sum(Pr1) - sum(Pr12)
+    
+    gamma <- tau_tilde/(1-ProbTie)
+  }else{gamma <- tau_tilde}
+  
+  return(gamma)
+  
 }
 
-F_dab[1,1] <- 1 # needed? shouldn't be automatic from the computations?
-
-# masses
-F_dab_mass <- matrix(NA,nrow=dim(F_dab)[1],ncol=dim(F_dab)[2])
-F_dab_mass[1,] <- F_dab[1,]
-F_dab_mass[,1] <- F_dab[,1]
-
-for(i in 2:dim(F_dab)[1]){
-  for(j in 2:dim(F_dab)[2]){
-    F_dab_mass[i,j] <- F_dab[i,j]-F_dab[i-1,j]-F_dab[i,j-1]+F_dab[i-1,j-1]
-  }
-}
 
 # # - - - - - -  - - - - - - - - - - - - - - - 
 # # - - - - - -  - - - - - - - - - - - - - - - 
@@ -100,6 +174,7 @@ FunZDel = function(n,theta,lambda=1,seed,alpha=2,beta=2){
   
   return(list(Z1,Z2,del))
 }
+
 
 # Log-pseudo-likelihood function
 #LogL = function(x){
