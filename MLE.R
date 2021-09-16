@@ -39,7 +39,8 @@ logL_MassShift <- function(theta){ # Clayton copula
 logL_MassShift_Nelsen <- function(theta){ # Nelsen 4.2.20 copula
   sum(
     phat*(
-      log(1+theta) - (1/theta+1)*log(log(exp(Fn1**(-theta))+exp(Fn2**(-theta))-exp(1)))-
+      log(1+theta)-
+        (1/theta+1)*log(log(exp(Fn1**(-theta))+exp(Fn2**(-theta))-exp(1)))-
         (theta+1)*log(Fn1*Fn2) + (Fn1**(-theta)+Fn2**(-theta))-
         2*log(exp(Fn1**(-theta))+exp(Fn2**(-theta))-exp(1))
     )
@@ -73,13 +74,13 @@ Score_ShihLouis <- function(x){ # Clayton
   ) # ,na.rm=TRUE
 }
 
-Max = 10 # seq(from=100,to=200,by=50)
+Max = 100 # seq(from=100,to=200,by=50)
 n = 100
-lambda = 1/10
+lambda = 5
 
 VarTheta = mean_del = theta_hat_MassShift_vect = theta_hat_ShihLouis_vect = rep(NA,Max)
 
-theta = 5
+theta = 10
 
 alpha = beta = 2
 
@@ -431,7 +432,10 @@ MSE_ShihLouis=Var_ShihLouis+Bias2_ShihLouis
 
 # # Plots for comparing the two MSEs
 
-
+Ylim <- range(c(theta_hat_MassShift_vect,theta_hat_ShihLouis_vect))
+plot(theta_hat_MassShift_vect,col="black",ylim=Ylim)
+points(theta_hat_ShihLouis_vect,col="blue")
+abline(h=theta,col="red")
 
 
 # # CAS Canada Life Insurance dataset
@@ -546,13 +550,24 @@ Fn2 <- 1-Fn2bar
 
 #theta_hat_MassShift_vect[m] <- optimise(f=L_MassShift,interval=c(0,50),maximum = TRUE)$maximum
 theta_hat_MassShift <- optimise(f=logL_MassShift,interval=c(0,50),maximum = TRUE)$maximum
-#theta_hat_MassShift <- optimise(f=logL_MassShift_Nelsen,interval=c(0,50),maximum = TRUE)$maximum
+#theta_hat_MassShift <- optimise(f=logL_MassShift_Nelsen,interval=c(0,1.5),maximum = TRUE)$maximum
 #theta_hat_MassShift_vect[m] <- newtonRaphson(fun=Score_MassShift, x0=Theta0)$root
 #theta_hat_MassShift_vect[m] <- uniroot(Score_MassShift, interval=c(0.01,50))$root
 #theta_hat_MassShift_vect[m] <- nlm(f=L_MassShift, p=Theta0)$estimate
 #theta_hat_ShihLouis_vect[m] <- optimise(f=L_ShihLouis,interval=c(0,50),maximum = TRUE)$maximum
 theta_hat_ShihLouis <- optimise(f=logL_ShihLouis,interval=c(0,50),maximum = TRUE)$maximum
 
+# # Plot for the two log-likelihood
+
+Theta <- matrix(seq(from=0.01,to=2,by=0.01),ncol=1)
+Y_MassShift <- apply(X=Theta,MARGIN=1,FUN=logL_MassShift_Nelsen) # logL_MassShift
+Y_ShihLouis <- apply(X=Theta,MARGIN=1,FUN=logL_ShihLouis)
+#c(length(X),length(Y))
+Ylim <- range(c(Y_MassShift,Y_ShihLouis))
+plot(Theta,Y_MassShift,type='l')
+#lines(Theta,Y_ShihLouis,col="red",ylim=Ylim)
+#abline(h=0,col="red")
+#plot(Theta,Y_ShihLouis,type='l')
 
 # # # Variance
 
