@@ -74,13 +74,13 @@ Score_ShihLouis <- function(x){ # Clayton
   ) # ,na.rm=TRUE
 }
 
-Max = 100 # seq(from=100,to=200,by=50)
-n = 100
-lambda = 5
+Max = 1 # seq(from=100,to=200,by=50)
+n = 50
+lambda = 0.05 # 1/0.5-1
 
-VarTheta = mean_del = theta_hat_MassShift_vect = theta_hat_ShihLouis_vect = rep(NA,Max)
+mean_del = theta_hat_MassShift_vect = theta_hat_ShihLouis_vect = rep(NA,Max)
 
-theta = 10
+theta = -1/2
 
 alpha = beta = 2
 
@@ -98,7 +98,11 @@ for(m in 1:Max){
                    margins=c("weibull","weibull"), # Weibull distribution for margins X and Y
                    paramMargins=list(shape=alpha,scale=beta)) # alpha:shape, beta:scale
   
-  #set.seed(m)
+  # MyCopula <- mvdc(copula=amhCopula(param=theta), # Ali-Mikail-Haq copula for (F(X), F(Y)), theta should be in [0,1]
+  #                  margins=c("exp","exp"), # exponential distribution for margins X and Y
+  #                  paramMargins=list(list(rate=1),list(rate=1)))
+  
+  set.seed(m)
   XY <- rMvdc(n=n,MyCopula)
   X <- XY[,1]
   Y <- XY[,2]
@@ -227,184 +231,13 @@ for(m in 1:Max){
   theta_hat_ShihLouis_vect[m] <- optimise(f=logL_ShihLouis,interval=c(0,50),maximum = TRUE)$maximum
 
   mean_del[m] = mean(del)
-  
-  
-  # # # # Variance
-  # 
-  # # # Variance of An
-  # 
-  # # Fn1[Fn1==0] <- min(Fn1[Fn1!=0])/10 # values of 0 cause numerical issues
-  # # Fn2[Fn2==0] <- min(Fn2[Fn2!=0])/10 # values of 0 cause numerical issues
-  # 
-  # theta_hat <- log(theta_hat_MassShift_vect[m])
-  # #theta_hat <- theta_hat_MassShift_vect[m]
-  # 
-  # # Phi
-  # 
-  # Phi <- rep(1/(theta_hat+1),times=n)-
-  #   log(Fn1[-(n+1)]*Fn2[-(n+1)])+
-  #   rep(1/theta_hat**2,times=n)*log(Fn1[-(n+1)]**rep(-theta_hat,times=n)+Fn2[-(n+1)]**rep(-theta_hat,times=n)-1)+
-  #   rep(2+1/theta_hat,times=n)*(Fn1[-(n+1)]**rep(-theta_hat,times=n)*log(Fn1[-(n+1)])+Fn2[-(n+1)]**rep(-theta_hat,times=n)*log(Fn2[-(n+1)]))/(Fn1[-(n+1)]**rep(-theta_hat,times=n)+Fn2[-(n+1)]**rep(-theta_hat,times=n)-1)
-  # 
-  # Phi[is.nan(Phi)] <- Phi[!is.nan(Phi)][1]
-  # 
-  # # VStar
-  # 
-  # A_z0 <- A_0z <- matrix(rep(NA,times=(n+1)*(n+1)),ncol=n+1)
-  # 
-  # A_z0[,n+1] <- 1
-  # A_z0[n+1,] <- 1
-  # 
-  # A_0z[,n+1] <- 1
-  # A_0z[n+1,] <- 1
-  # 
-  # for(i in 1:n){
-  #   for(j in 1:n){
-  #     A_z0[i,j] <- Z1[j]>=Z1[i]
-  #     A_0z[i,j] <- Z2[j]>=Z2[i]
-  #     #A[i,j] <- (Z1[j]>=Z1[i])*(Z2[j]>=Z2[i])
-  #   }
-  # }
-  # 
-  # # b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
-  # # B=diag(b)
-  # 
-  # Id = diag(1,n+1)
-  # 
-  # b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
-  # B=diag(b)
-  # 
-  # # Id = diag(1,n+1)
-  # 
-  # M=rbind(Id-A_z0%*%B,-t(b))
-  # MMinv=solve(t(M)%*%M)
-  # Fbar=as.vector(MMinv%*%b)
-  # 
-  # Fbar=Fbar[-(n+1)]
-  # b=b[-(n+1)]
-  # A_z0=A_z0[-(n+1),][,-(n+1)]
-  # B=B[-(n+1),][,-(n+1)]
-  # Id=diag(1,n)
-  # M=rbind(Id-A_z0%*%B,-t(b))
-  # MMinv=solve(t(M)%*%M)
-  # 
-  # D=(1-A_z0)*(1-t(A_z0))*(A_z0%*%t(A_z0))
-  # bf=b*Fbar
-  # BF=diag(bf)
-  # S=rbind(A_z0%*%BF,t(bf))
-  # R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
-  # U=(t(M)%*%R)%*%M
-  # V_z0=(MMinv%*%U)%*%MMinv
-  # 
-  # b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
-  # B=diag(b)
-  # 
-  # Id = diag(1,n+1)
-  # 
-  # M=rbind(Id-A_0z%*%B,-t(b))
-  # MMinv=solve(t(M)%*%M)
-  # Fbar=as.vector(MMinv%*%b)
-  # 
-  # Fbar=Fbar[-(n+1)]
-  # b=b[-(n+1)]
-  # A_0z=A_0z[-(n+1),][,-(n+1)]
-  # B=B[-(n+1),][,-(n+1)]
-  # Id=diag(1,n)
-  # M=rbind(Id-A_0z%*%B,-t(b))
-  # MMinv=solve(t(M)%*%M)
-  # 
-  # D=(1-A_0z)*(1-t(A_0z))*(A_0z%*%t(A_0z))
-  # bf=b*Fbar
-  # BF=diag(bf)
-  # S=rbind(A_0z%*%BF,t(bf))
-  # R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
-  # U=(t(M)%*%R)%*%M
-  # V_0z=(MMinv%*%U)%*%MMinv
-  # 
-  # Fun_PhiStar <- function(x,y,theta){
-  #   -1/x-
-  #     rep(1/theta,times=n)*x**rep(-theta-1,times=n)/(x**rep(-theta,times=n)+y**rep(-theta,times=n)-1)+
-  #     rep(2+1/theta,times=n)*x**rep(-theta-1,times=n)*((x**rep(-theta,times=n)+y**rep(-theta,times=n)-1)*(-rep(theta,times=n)*log(x)+1)+ 
-  #                                                        rep(theta,times=n)*(x**rep(-theta,times=n)*log(x)+y**rep(-theta,times=n)*log(y)))/
-  #     (x**rep(-theta,times=n)+y**rep(-theta,times=n)-1)**2
-  # }
-  # 
-  # PhiStar1 = Fun_PhiStar(x=Fn1[-(n+1)],y=Fn2[-(n+1)],theta=theta_hat)
-  # PhiStar2 = Fun_PhiStar(x=Fn2[-(n+1)],y=Fn1[-(n+1)],theta=theta_hat)
-  # 
-  # PhiStar1[is.nan(PhiStar1)] <- PhiStar1[!is.nan(PhiStar1)][1]
-  # PhiStar2[is.nan(PhiStar2)] <- PhiStar2[!is.nan(PhiStar2)][1]
-  # 
-  # PhiStar1_matrix = matrix(rep(PhiStar1,times=n),ncol=n)
-  # PhiStar2_matrix = matrix(rep(PhiStar2,times=n),ncol=n)
-  # 
-  # VStar = V_z0*PhiStar1_matrix + V_0z*PhiStar2_matrix
-  # 
-  # # R_hat
-  # 
-  # Z1=c(Z1,xinf)
-  # Z2=c(Z2,xinf)
-  # 
-  # az1=matrix(rep(Z1,n+1),ncol=n+1)
-  # az2=matrix(rep(Z2,n+1),ncol=n+1)
-  # A=(t(az1)>=az1)*(t(az2)>=az2)
-  # A[lower.tri(A, diag = FALSE)] = 0
-  # rsumA=apply(A,1,sum)
-  # 
-  # b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
-  # B=diag(b)
-  # 
-  # Id=diag(rep(1,n+1))
-  # M=rbind(Id-A%*%B,-t(b))
-  # MMinv=solve(t(M)%*%M)
-  # Fbar=as.vector(MMinv%*%b)
-  # 
-  # Fbar=Fbar[-(n+1)]
-  # b=b[-(n+1)]
-  # A=A[-(n+1),][,-(n+1)]
-  # B=B[-(n+1),][,-(n+1)]
-  # Id=diag(1,n)
-  # M=rbind(Id-A%*%B,-t(b))
-  # MMinv=solve(t(M)%*%M)
-  # 
-  # D=(1-A)*(1-t(A))*(A%*%t(A))
-  # 
-  # Matrix1 = rbind(Id - A%*%B,-t(b))
-  # Matrix2 = (rbind(A%*%B%*%diag(Fbar),b%*%diag(Fbar)))%*%(Id + B%*%D%*%B)%*%diag(Fbar)%*%B
-  # Matrix3 = ginv(Matrix1)%*%Matrix2
-  # 
-  # r1_hat = Matrix3%*%(Phi*PhiStar1)
-  # r2_hat = Matrix3%*%(Phi*PhiStar2)
-  # 
-  # # e_hat
-  # 
-  # #Matrix5 = (rbind(A%*%B%*%diag(Fbar),b%*%diag(Fbar)))%*%(Id + B%*%D%*%B)%*%(diag(Fbar)%*%B%*%(Phi*Phi))
-  # 
-  # e_hat = Matrix3%*%(Phi*Phi)
-  # 
-  # # V (variance of Fbar)
-  # 
-  # V=(MMinv%*%U)%*%MMinv
-  # 
-  # # Var(An)
-  # 
-  # Var_An = t(PhiStar1)%*%diag(Fbar)%*%B%*%V%*%B%*%diag(Fbar)%*%PhiStar2+
-  #   2*b%*%VStar%*%diag(Fbar)%*%b+
-  #   2*t(r1_hat+r2_hat)%*%diag(Fbar)%*%b+
-  #   t(Phi)%*%B%*%V%*%B%*%Phi+
-  #   2*b%*%e_hat+
-  #   t(Phi)%*%B%*%diag(Fbar)%*%(diag(Fbar)%*%b+B%*%D%*%B%*%diag(Fbar)%*%B%*%Phi)
-  # 
-  # # t(PhiStar1)*diag(Fbar)
-  # 
-  # # # Variance of sqrt(n)(theta_hat - theta)
-  # 
-  # #VarTheta = Var_An/(t(Phi)**2%*%Fbar)
-  # VarTheta[m] <- Var_An/(t(Phi)**2%*%phat)
 
 }
 
+100*(1-mean(mean_del))
+
 # c(mean(mean_del)*100,mean(theta_hat_MassShift_vect),mean(theta_hat_ShihLouis_vect),theta,mean(VarTheta))
+
 
 # # Plots for comparing the two log-likelihoods
 
@@ -436,6 +269,179 @@ Ylim <- range(c(theta_hat_MassShift_vect,theta_hat_ShihLouis_vect))
 plot(theta_hat_MassShift_vect,col="black",ylim=Ylim)
 points(theta_hat_ShihLouis_vect,col="blue")
 abline(h=theta,col="red")
+
+# # # Variance
+
+# # Variance of An
+
+# Fn1[Fn1==0] <- min(Fn1[Fn1!=0])/10 # values of 0 cause numerical issues
+# Fn2[Fn2==0] <- min(Fn2[Fn2!=0])/10 # values of 0 cause numerical issues
+
+theta_hat <- log(theta_hat_MassShift_vect[m])
+#theta_hat <- theta_hat_MassShift_vect[m]
+
+# Phi
+
+ Phi <- rep(1/(theta_hat+1),times=n)-
+   log(Fn1[-(n+1)]*Fn2[-(n+1)])+
+   rep(1/theta_hat**2,times=n)*log(Fn1[-(n+1)]**rep(-theta_hat,times=n)+Fn2[-(n+1)]**rep(-theta_hat,times=n)-1)+
+   rep(2+1/theta_hat,times=n)*(Fn1[-(n+1)]**rep(-theta_hat,times=n)*log(Fn1[-(n+1)])+Fn2[-(n+1)]**rep(-theta_hat,times=n)*log(Fn2[-(n+1)]))/(Fn1[-(n+1)]**rep(-theta_hat,times=n)+Fn2[-(n+1)]**rep(-theta_hat,times=n)-1)
+
+ Phi[is.nan(Phi)] <- Phi[!is.nan(Phi)][1]
+
+ # VStar
+
+ A_z0 <- A_0z <- matrix(rep(NA,times=(n+1)*(n+1)),ncol=n+1)
+
+ A_z0[,n+1] <- 1
+ A_z0[n+1,] <- 1
+
+ A_0z[,n+1] <- 1
+ A_0z[n+1,] <- 1
+
+ for(i in 1:n){
+   for(j in 1:n){
+     A_z0[i,j] <- Z1[j]>=Z1[i]
+     A_0z[i,j] <- Z2[j]>=Z2[i]
+     #A[i,j] <- (Z1[j]>=Z1[i])*(Z2[j]>=Z2[i])
+   }
+ }
+
+ # b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+ # B=diag(b)
+
+ Id = diag(1,n+1)
+
+ b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+ B=diag(b)
+
+ # Id = diag(1,n+1)
+
+ M=rbind(Id-A_z0%*%B,-t(b))
+ MMinv=solve(t(M)%*%M)
+ Fbar=as.vector(MMinv%*%b)
+
+ Fbar=Fbar[-(n+1)]
+ b=b[-(n+1)]
+ A_z0=A_z0[-(n+1),][,-(n+1)]
+ B=B[-(n+1),][,-(n+1)]
+ Id=diag(1,n)
+ M=rbind(Id-A_z0%*%B,-t(b))
+ MMinv=solve(t(M)%*%M)
+
+ D=(1-A_z0)*(1-t(A_z0))*(A_z0%*%t(A_z0))
+ bf=b*Fbar
+ BF=diag(bf)
+ S=rbind(A_z0%*%BF,t(bf))
+ R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
+ U=(t(M)%*%R)%*%M
+ V_z0=(MMinv%*%U)%*%MMinv
+
+ b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+ B=diag(b)
+
+ Id = diag(1,n+1)
+
+ M=rbind(Id-A_0z%*%B,-t(b))
+ MMinv=solve(t(M)%*%M)
+ Fbar=as.vector(MMinv%*%b)
+
+ Fbar=Fbar[-(n+1)]
+ b=b[-(n+1)]
+ A_0z=A_0z[-(n+1),][,-(n+1)]
+ B=B[-(n+1),][,-(n+1)]
+ Id=diag(1,n)
+ M=rbind(Id-A_0z%*%B,-t(b))
+ MMinv=solve(t(M)%*%M)
+
+ D=(1-A_0z)*(1-t(A_0z))*(A_0z%*%t(A_0z))
+ bf=b*Fbar
+ BF=diag(bf)
+ S=rbind(A_0z%*%BF,t(bf))
+ R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
+ U=(t(M)%*%R)%*%M
+ V_0z=(MMinv%*%U)%*%MMinv
+
+ Fun_PhiStar <- function(x,y,theta){
+   -1/x-
+     rep(1/theta,times=n)*x**rep(-theta-1,times=n)/(x**rep(-theta,times=n)+y**rep(-theta,times=n)-1)+
+     rep(2+1/theta,times=n)*x**rep(-theta-1,times=n)*((x**rep(-theta,times=n)+y**rep(-theta,times=n)-1)*(-rep(theta,times=n)*log(x)+1)+
+                                                        rep(theta,times=n)*(x**rep(-theta,times=n)*log(x)+y**rep(-theta,times=n)*log(y)))/
+     (x**rep(-theta,times=n)+y**rep(-theta,times=n)-1)**2
+ }
+
+ PhiStar1 = Fun_PhiStar(x=Fn1[-(n+1)],y=Fn2[-(n+1)],theta=theta_hat)
+ PhiStar2 = Fun_PhiStar(x=Fn2[-(n+1)],y=Fn1[-(n+1)],theta=theta_hat)
+
+ PhiStar1[is.nan(PhiStar1)] <- PhiStar1[!is.nan(PhiStar1)][1]
+ PhiStar2[is.nan(PhiStar2)] <- PhiStar2[!is.nan(PhiStar2)][1]
+
+ PhiStar1_matrix = matrix(rep(PhiStar1,times=n),ncol=n)
+ PhiStar2_matrix = matrix(rep(PhiStar2,times=n),ncol=n)
+
+ VStar = V_z0*PhiStar1_matrix + V_0z*PhiStar2_matrix
+
+ # R_hat
+
+ Z1=c(Z1,xinf)
+ Z2=c(Z2,xinf)
+
+ az1=matrix(rep(Z1,n+1),ncol=n+1)
+ az2=matrix(rep(Z2,n+1),ncol=n+1)
+ A=(t(az1)>=az1)*(t(az2)>=az2)
+ A[lower.tri(A, diag = FALSE)] = 0
+ rsumA=apply(A,1,sum)
+
+ b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+ B=diag(b)
+
+ Id=diag(rep(1,n+1))
+ M=rbind(Id-A%*%B,-t(b))
+ MMinv=solve(t(M)%*%M)
+ Fbar=as.vector(MMinv%*%b)
+
+ Fbar=Fbar[-(n+1)]
+ b=b[-(n+1)]
+ A=A[-(n+1),][,-(n+1)]
+ B=B[-(n+1),][,-(n+1)]
+ Id=diag(1,n)
+ M=rbind(Id-A%*%B,-t(b))
+ MMinv=solve(t(M)%*%M)
+
+ D=(1-A)*(1-t(A))*(A%*%t(A))
+
+ Matrix1 = rbind(Id - A%*%B,-t(b))
+ Matrix2 = (rbind(A%*%B%*%diag(Fbar),b%*%diag(Fbar)))%*%(Id + B%*%D%*%B)%*%diag(Fbar)%*%B
+ Matrix3 = ginv(Matrix1)%*%Matrix2
+
+ r1_hat = Matrix3%*%(Phi*PhiStar1)
+ r2_hat = Matrix3%*%(Phi*PhiStar2)
+
+ # e_hat
+
+ #Matrix5 = (rbind(A%*%B%*%diag(Fbar),b%*%diag(Fbar)))%*%(Id + B%*%D%*%B)%*%(diag(Fbar)%*%B%*%(Phi*Phi))
+
+ e_hat = Matrix3%*%(Phi*Phi)
+
+ # V (variance of Fbar)
+
+ V=(MMinv%*%U)%*%MMinv
+
+ # Var(An)
+
+ Var_An = t(PhiStar1)%*%diag(Fbar)%*%B%*%V%*%B%*%diag(Fbar)%*%PhiStar2+
+   2*b%*%VStar%*%diag(Fbar)%*%b+
+   2*t(r1_hat+r2_hat)%*%diag(Fbar)%*%b+
+   t(Phi)%*%B%*%V%*%B%*%Phi+
+   2*b%*%e_hat+
+   t(Phi)%*%B%*%diag(Fbar)%*%(diag(Fbar)%*%b+B%*%D%*%B%*%diag(Fbar)%*%B%*%Phi)
+
+ # t(PhiStar1)*diag(Fbar)
+
+ # # Variance of sqrt(n)(theta_hat - theta)
+
+ #VarTheta = Var_An/(t(Phi)**2%*%Fbar)
+ VarTheta <- Var_An/(t(Phi)**2%*%phat)
 
 
 # # CAS Canada Life Insurance dataset
