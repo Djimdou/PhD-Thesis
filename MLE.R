@@ -1,5 +1,3 @@
-KB
-
 # # Packages installation and loading
 
 install.packages(c('copula','pracma','SurvCorr','survival','MASS'))# 'tabulizer','tryCatchLog','mhazard','CASdatasets'
@@ -32,7 +30,7 @@ L_ShihLouis <- function(theta){
 
 # Pseudo-loglikelihood functions
 
-logL_MassShift <- function(theta){ # Clayton copula
+logL_MassShift_Clayton <- function(theta){ # Clayton copula, theta > 0
   sum(
     phat*(log(theta+1)-(theta+1)*log(Fn1*Fn2)-(2+1/theta)*log(Fn1**(-theta)+Fn2**(-theta)-1))
     ,na.rm=TRUE) # 
@@ -41,8 +39,8 @@ logL_MassShift <- function(theta){ # Clayton copula
 logL_MassShift_AMH <- function(theta){ # AMH copula,  # theta in -1,1
   sum(
     phat*(
-      -3*log(1-theta*(1-Fn1)*(1-Fn2))+log(1-2*theta+theta**2+theta*(1-theta)*(Fn1+Fn2)
-                                          +theta*(theta+1)*Fn1*Fn2)
+      -3*log(1-theta*(1-Fn1)*(1-Fn2))+
+        log(1-2*theta+theta**2+theta*(1-theta)*(Fn1+Fn2)+theta*(theta+1)*Fn1*Fn2)
     )
     ,na.rm=TRUE) # 
 }
@@ -66,9 +64,11 @@ logL_ShihLouis <- function(theta){
 
 logL_ShihLouis_AMH <- function(theta){ # theta in -1,1
   sum(
-    del1*del2*log(1-2*theta+theta**2+2*theta*(1-theta)*Fn1+
-          theta*(1-theta)*Fn2+2*theta**2*Fn1*Fn2+theta**2*Fn1**2-theta**2*Fn1**2*Fn2)
-      ,na.rm=TRUE)
+    del1*del2*log(1-2*theta+theta**2+theta*(1-theta)*(Fn1bar+Fn2bar)+theta*(theta+1)*Fn1bar*Fn2bar)-
+      (1+del1+del2)*log(1-theta*(1-Fn1bar)*(1-Fn2bar))+
+      (1-del1)*log(Fn1bar) + (1-del2)*log(Fn2bar) +
+      (1-del1)*del2*log(1-theta*(1-Fn1bar)) + del1*(1-del2)*log(1-theta*(1-Fn2bar))
+    ,na.rm=TRUE)
 }
 
 # Score functions
@@ -92,15 +92,16 @@ Score_ShihLouis <- function(x){ # Clayton
   ) # ,na.rm=TRUE
 }
 
-Max = 1 # seq(from=100,to=200,by=50)
-n = 50
-lambda = 0.05 # 1/0.5-1
+Max = 100 # seq(from=100,to=200,by=50)
+n = 200
+lambda = 1 # 
+a = 20 # 3/4,4,10
 
 mean_del = theta_hat_MassShift_vect = theta_hat_ShihLouis_vect = rep(NA,Max)
 
-theta = -1/2
+theta = 3/4
 
-alpha = beta = 2
+alpha = beta = 1
 
 for(m in 1:Max){
   
@@ -117,18 +118,21 @@ for(m in 1:Max){
   #                 paramMargins=list(shape=alpha,scale=beta)) # alpha:shape, beta:scale
   
   MyCopula <- mvdc(copula=amhCopula(param=theta), # Ali-Mikail-Haq copula for (F(X), F(Y)), theta should be in [0,1]
-                    margins=c("exp","exp"), # exponential distribution for margins X and Y
-                    paramMargins=list(list(rate=1),list(rate=1)))
+                   # margins=c("exp","exp"), # exponential distribution for margins X and Y
+                   # paramMargins=list(list(rate=1),list(rate=1))
+                   margins=c("weibull","weibull"), # Weibull distribution for margins X and Y
+                   paramMargins=list(shape=alpha,scale=beta) # alpha:shape, beta:scale
+                   )
   
-  #set.seed(m)
+  set.seed(m)
   XY <- rMvdc(n=n,MyCopula)
   X <- XY[,1]
   Y <- XY[,2]
   
   # Censoring variable
   
-  Cx = rexp(n=n,rate = lambda)
-  Cy = rexp(n=n,rate = lambda)
+  Cx = runif(n=n,min=0,max=a)#rexp(n=n,rate = lambda)
+  Cy = runif(n=n,min=0,max=a)#rexp(n=n,rate = lambda)
   
   # Observations
   
@@ -217,10 +221,10 @@ for(m in 1:Max){
   
   Z1 <- Z1[-(n+1)]
   Z2 <- Z2[-(n+1)]
-  Z2 <- Z2[order(Z2)]
+  #Z2 <- Z2[order(Z2)]
   del1 <- del1[-(n+1)]
   del2 <- del2[-(n+1)]
-  del2 <- del2[order(Z2)]
+  #del2 <- del2[order(Z2)]
   
   model1 <- survfit(Surv(Z1, del1) ~ 1)
   T1 <- model1$time
@@ -248,7 +252,7 @@ for(m in 1:Max){
   #theta_hat_MassShift_vect[m] <- uniroot(Score_MassShift, interval=c(0.01,50))$root
   #theta_hat_MassShift_vect[m] <- nlm(f=L_MassShift, p=Theta0)$estimate
   #theta_hat_ShihLouis_vect[m] <- optimise(f=L_ShihLouis,interval=c(0,50),maximum = TRUE)$maximum
-  theta_hat_ShihLouis_vect[m] <- optimise(f=logL_ShihLouis,interval=c(0,50),maximum = TRUE)$maximum
+  theta_hat_ShihLouis_vect[m] <- optimise(f=logL_ShihLouis_AMH,interval=c(-1,1),maximum = TRUE)$maximum
   
   mean_del[m] = mean(del)
   
@@ -265,9 +269,10 @@ Theta <- matrix(seq(from=-1,to=1,by=0.1),ncol=1)
 Y_MassShift <- apply(X=Theta,MARGIN=1,FUN=logL_MassShift_AMH) # logL_MassShift
 Y_ShihLouis <- apply(X=Theta,MARGIN=1,FUN=logL_ShihLouis_AMH)
 #c(length(X),length(Y))
-Ylim <- range(c(Y_MassShift,Y_ShihLouis))
+Ylim <- range(c(Y_MassShift[is.finite(Y_MassShift)],Y_ShihLouis[is.finite(Y_ShihLouis)]))
 plot(Theta,Y_MassShift,type='l') # ,ylim=Ylim
-lines(Theta,Y_ShihLouis,col="red",ylim=Ylim)
+plot(Theta,Y_ShihLouis,type='l') # ,ylim=Ylim
+#lines(Theta,Y_ShihLouis,col="red") # ,ylim=Ylim
 #abline(h=0,col="red")
 #plot(Theta,Y_ShihLouis,type='l')
 
