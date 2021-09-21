@@ -91,16 +91,16 @@ logL_ShihLouis <- function(theta,CopulaName){
 #   ) # ,na.rm=TRUE
 # }
 
-Max = 100 # seq(from=100,to=200,by=50)
-n = 200
-lambda = 1 # 
+Max = 500 # 500
+n = 500 # 500
+lambda = 0.05 # 0.05
 a = 3 # 3,10 # superior limit of the censoring r.v. uniformly distributed
 
 mean_del = theta_hat_MassShift_vect = theta_hat_ShihLouis_vect = rep(NA,Max)
 
-theta = 1 # copula parameter
+theta = 1/2 # copula parameter. 
 
-alpha = beta = 1 # alpha:shape, beta:scale of the margins
+alpha = beta = 2 # alpha:shape, beta:scale of the margins
 
 CopulaName = "Clayton" # in c("Clayton", "AMH")
 
@@ -350,17 +350,26 @@ abline(h=theta,col="red")
 # Fn1[Fn1==0] <- min(Fn1[Fn1!=0])/10 # values of 0 cause numerical issues
 # Fn2[Fn2==0] <- min(Fn2[Fn2!=0])/10 # values of 0 cause numerical issues
 
-theta_hat <- log(theta_hat_MassShift_vect[m])
-#theta_hat <- theta_hat_MassShift_vect[m]
+#theta_hat <- log(theta_hat_MassShift_vect[m])
+theta_hat <- theta_hat_MassShift_vect[m]
 
 # Phi
 
+if(CopulaName=="Clayton"){
 Phi <- rep(1/(theta_hat+1),times=n)-
   log(Fn1[-(n+1)]*Fn2[-(n+1)])+
   rep(1/theta_hat**2,times=n)*log(Fn1[-(n+1)]**rep(-theta_hat,times=n)+Fn2[-(n+1)]**rep(-theta_hat,times=n)-1)+
   rep(2+1/theta_hat,times=n)*(Fn1[-(n+1)]**rep(-theta_hat,times=n)*log(Fn1[-(n+1)])+Fn2[-(n+1)]**rep(-theta_hat,times=n)*log(Fn2[-(n+1)]))/(Fn1[-(n+1)]**rep(-theta_hat,times=n)+Fn2[-(n+1)]**rep(-theta_hat,times=n)-1)
+}
 
-Phi[is.nan(Phi)] <- Phi[!is.nan(Phi)][1]
+if(CopulaName=="AMH"){
+  Phi <- -3*(1-Fn1)*(1-Fn2)/(1-theta_hat*(1-Fn1)*(1-Fn2))+
+          (2*(theta_hat-1)+(1-2*theta_hat)*(Fn1+Fn2)+(2*theta_hat+1)*Fn1*Fn2)/
+            (1-2*theta_hat+theta_hat**2+theta_hat*(theta_hat-1)*(Fn1+Fn2)+theta_hat*(theta_hat+1)*Fn1*Fn2)
+}
+  
+# NaN produced. Better avoid
+# Phi[is.nan(Phi)] <- Phi[!is.nan(Phi)][1]
 
 # VStar
 
@@ -435,19 +444,29 @@ R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
 U=(t(M)%*%R)%*%M
 V_0z=(MMinv%*%U)%*%MMinv
 
-Fun_PhiStar <- function(x,y,theta){
-  -1/x-
-    rep(1/theta,times=n)*x**rep(-theta-1,times=n)/(x**rep(-theta,times=n)+y**rep(-theta,times=n)-1)+
-    rep(2+1/theta,times=n)*x**rep(-theta-1,times=n)*((x**rep(-theta,times=n)+y**rep(-theta,times=n)-1)*(-rep(theta,times=n)*log(x)+1)+
-                                                       rep(theta,times=n)*(x**rep(-theta,times=n)*log(x)+y**rep(-theta,times=n)*log(y)))/
-    (x**rep(-theta,times=n)+y**rep(-theta,times=n)-1)**2
+Fun_PhiStar <- function(x,y,theta,CopulaName){
+  if(CopulaName=="Clayton"){
+    PhiStar <- -1/x-
+                rep(1/theta,times=n)*x**rep(-theta-1,times=n)/(x**rep(-theta,times=n)+y**rep(-theta,times=n)-1)+
+                rep(2+1/theta,times=n)*x**rep(-theta-1,times=n)*((x**rep(-theta,times=n)+y**rep(-theta,times=n)-1)*(-rep(theta,times=n)*log(x)+1)+
+                                                                   rep(theta,times=n)*(x**rep(-theta,times=n)*log(x)+y**rep(-theta,times=n)*log(y)))/
+                (x**rep(-theta,times=n)+y**rep(-theta,times=n)-1)**2
+  }
+  if(CopulaName=="AMH"){
+    PhiStar <- -3*(1-y)/(1-theta*(1-x)*(1-y))**2 +
+                (1-2*theta+(2*theta+1)*y)/(1-2*theta+theta**2+theta*(1-theta)*(x+y)+theta*(theta+1)*x*y)-
+                (theta*(2*(theta-1)+(1-2*theta)*(x+y)+(2*theta+1)*x*y)*((1-theta)*x+theta*(theta+1)*y))/
+                  (1-2*theta+theta**2+theta*(1-theta)*(x+y)+theta*(theta+1)*x*y)**2
+  }
+  return(PhiStar)
 }
 
-PhiStar1 = Fun_PhiStar(x=Fn1[-(n+1)],y=Fn2[-(n+1)],theta=theta_hat)
-PhiStar2 = Fun_PhiStar(x=Fn2[-(n+1)],y=Fn1[-(n+1)],theta=theta_hat)
+PhiStar1 = Fun_PhiStar(x=Fn1[-(n+1)],y=Fn2[-(n+1)],theta=theta_hat,CopulaName=CopulaName)
+PhiStar2 = Fun_PhiStar(x=Fn2[-(n+1)],y=Fn1[-(n+1)],theta=theta_hat,CopulaName=CopulaName)
 
-PhiStar1[is.nan(PhiStar1)] <- PhiStar1[!is.nan(PhiStar1)][1]
-PhiStar2[is.nan(PhiStar2)] <- PhiStar2[!is.nan(PhiStar2)][1]
+# Watch out! NaNs produced. 
+# PhiStar1[is.nan(PhiStar1)] <- PhiStar1[!is.nan(PhiStar1)][1]
+# PhiStar2[is.nan(PhiStar2)] <- PhiStar2[!is.nan(PhiStar2)][1]
 
 PhiStar1_matrix = matrix(rep(PhiStar1,times=n),ncol=n)
 PhiStar2_matrix = matrix(rep(PhiStar2,times=n),ncol=n)
