@@ -15,93 +15,109 @@ library(MASS) # for ginv
 # same values for MLE if (lambda,theta)=(1/2,5),(1,1),(1,2),(2,2),(2,5),(1/2,5) # seems like similarity appears for censoring >= 50%
 # different values if (lambda,theta)=(1/8,1),(1/4,2),(1/4,1),(1/3,1),(1/4,5) # seems like difference appears for censoring <= 50%, due just to a couple of values
 
-# Pseudo-likelihood function
-
-L_MassShift <- function(theta){
-  prod(((theta+1)*(Fn1*Fn2)**(-theta-1)*(Fn1**(-theta)+Fn2**(-theta)-1)**(-2-1/theta))**phat) # , na.rm=TRUE
-}
-
-L_ShihLouis <- function(theta){
-  prod((theta+1)*(Fn1bar*Fn2bar)**(-theta-1)*(Fn1bar**(-theta)+Fn2bar**(-theta)-1)**(del1*del2)*
-         (Fn1bar**(-theta-1)*(Fn1bar**(-theta)+Fn2bar**(-theta)-1)**(-1/theta-1))**(del1*(1-del2))*
-         (Fn2bar**(-theta-1)*(Fn1bar**(-theta)+Fn2bar**(-theta)-1)**(-1/theta-1))**((1-del1)*del2)*
-         ((Fn1bar**(-theta)+Fn2bar**(-theta)-1)**(-1/theta))**((1-del1)*(1-del2))) # , na.rm=TRUE
-}
+# # Pseudo-likelihood function
+# 
+# L_MassShift <- function(theta){
+#   prod(((theta+1)*(Fn1*Fn2)**(-theta-1)*(Fn1**(-theta)+Fn2**(-theta)-1)**(-2-1/theta))**phat) # , na.rm=TRUE
+# }
+# 
+# L_ShihLouis <- function(theta){
+#   prod((theta+1)*(Fn1bar*Fn2bar)**(-theta-1)*(Fn1bar**(-theta)+Fn2bar**(-theta)-1)**(del1*del2)*
+#          (Fn1bar**(-theta-1)*(Fn1bar**(-theta)+Fn2bar**(-theta)-1)**(-1/theta-1))**(del1*(1-del2))*
+#          (Fn2bar**(-theta-1)*(Fn1bar**(-theta)+Fn2bar**(-theta)-1)**(-1/theta-1))**((1-del1)*del2)*
+#          ((Fn1bar**(-theta)+Fn2bar**(-theta)-1)**(-1/theta))**((1-del1)*(1-del2))) # , na.rm=TRUE
+# }
 
 # Pseudo-loglikelihood functions
 
-logL_MassShift_Clayton <- function(theta){ # Clayton copula, theta > 0
-  sum(
-    phat*(log(theta+1)-(theta+1)*log(Fn1*Fn2)-(2+1/theta)*log(Fn1**(-theta)+Fn2**(-theta)-1))
-    ,na.rm=TRUE) # 
+logL_MassShift <- function(theta,CopulaName){
+  
+  if(CopulaName == "Clayton"){ # theta > 0
+    logl <- log(theta+1)-(theta+1)*log(Fn1*Fn2)-(2+1/theta)*log(Fn1**(-theta)+Fn2**(-theta)-1)
+  }
+  
+  if(CopulaName == "AMH"){ # AMH copula,  # theta in -1,1
+    logl <- -3*log(1-theta*(1-Fn1)*(1-Fn2))+
+      log(1-2*theta+theta**2+theta*(1-theta)*(Fn1+Fn2)+theta*(theta+1)*Fn1*Fn2)
+  }
+  
+  if(CopulaName == "Nelsen"){ # Nelsen 4.2.20 copula
+    logl <- log(1+theta)-
+              (1/theta+1)*log(log(exp(Fn1**(-theta))+exp(Fn2**(-theta))-exp(1)))-
+              (theta+1)*log(Fn1*Fn2) + (Fn1**(-theta)+Fn2**(-theta))-
+              2*log(exp(Fn1**(-theta))+exp(Fn2**(-theta))-exp(1))
+  }
+  
+  logL <- sum(phat*logl,na.rm=TRUE)
+  return(logL)
 }
 
-logL_MassShift_AMH <- function(theta){ # AMH copula,  # theta in -1,1
-  sum(
-    phat*(
-      -3*log(1-theta*(1-Fn1)*(1-Fn2))+
-        log(1-2*theta+theta**2+theta*(1-theta)*(Fn1+Fn2)+theta*(theta+1)*Fn1*Fn2)
-    )
-    ,na.rm=TRUE) # 
+
+logL_ShihLouis <- function(theta,CopulaName){
+  
+  if(CopulaName == "Clayton"){ # theta > 0
+    logl <- del1*del2*log(theta+1)-(theta+1)*(del1*log(Fn1bar)+del2*log(Fn2bar))-
+      (1/theta+del1+del2)*log(Fn1bar**(-theta)+Fn2bar**(-theta)-1)
+  }
+  
+  if(CopulaName == "AMH"){ # -1 <= theta <= 1
+    logl <- del1*del2*log(1-2*theta+theta**2+theta*(1-theta)*(Fn1bar+Fn2bar)+theta*(theta+1)*Fn1bar*Fn2bar)-
+            (1+del1+del2)*log(1-theta*(1-Fn1bar)*(1-Fn2bar))+
+            (1-del1)*log(Fn1bar) + (1-del2)*log(Fn2bar) +
+            (1-del1)*del2*log(1-theta*(1-Fn1bar)) + del1*(1-del2)*log(1-theta*(1-Fn2bar))
+  }
+  
+  logL <- sum(logl,na.rm=TRUE)
 }
 
-logL_MassShift_Nelsen <- function(theta){ # Nelsen 4.2.20 copula
-  sum(
-    phat*(
-      log(1+theta)-
-        (1/theta+1)*log(log(exp(Fn1**(-theta))+exp(Fn2**(-theta))-exp(1)))-
-        (theta+1)*log(Fn1*Fn2) + (Fn1**(-theta)+Fn2**(-theta))-
-        2*log(exp(Fn1**(-theta))+exp(Fn2**(-theta))-exp(1))
-    )
-    ,na.rm=TRUE) #
-}
-
-logL_ShihLouis <- function(theta){
-  sum(del1*del2*log(theta+1)-(theta+1)*(del1*log(Fn1bar)+del2*log(Fn2bar))-
-        (1/theta+del1+del2)*log(Fn1bar**(-theta)+Fn2bar**(-theta)-1)
-      ,na.rm=TRUE)
-}
-
-logL_ShihLouis_AMH <- function(theta){ # theta in -1,1
-  sum(
-    del1*del2*log(1-2*theta+theta**2+theta*(1-theta)*(Fn1bar+Fn2bar)+theta*(theta+1)*Fn1bar*Fn2bar)-
-      (1+del1+del2)*log(1-theta*(1-Fn1bar)*(1-Fn2bar))+
-      (1-del1)*log(Fn1bar) + (1-del2)*log(Fn2bar) +
-      (1-del1)*del2*log(1-theta*(1-Fn1bar)) + del1*(1-del2)*log(1-theta*(1-Fn2bar))
-    ,na.rm=TRUE)
-}
-
-# Score functions
-
-Score_MassShift <- function(x){ # Clayton
-  sum(phat*(rep(1/(x+1),times=n)-
-              log(Fn1*Fn2)+
-              (rep(1/x**2,times=n))*log(Fn1**(rep(-x,times=n))+Fn2**(rep(-x,times=n))-1)+
-              (rep(2+1/x,times=n))*(Fn1**(rep(-x,times=n))*log(Fn1)+ 
-                                      Fn2**(rep(-x,times=n))*log(Fn2))/
-              (Fn1**(rep(-x,times=n))+Fn2**(rep(-x,times=n))-1))) # ,na.rm=TRUE
-}
-
-Score_ShihLouis <- function(x){ # Clayton
-  sum(del1*del2*(rep(1/(x+1),times=n)-log(Fn1*Fn2))-
-        (del1*(1-del2)*log(Fn1)+(1-del1)*del2*log(Fn2))-
-        (
-          -rep(1/x**2,times=n)*(1-del1*del2)*log(Fn1**(rep(-x,times=n))+Fn2**(rep(-x,times=n))-1)+
-            (rep(1/x,times=n)*(1-del1*del2)+del1+del2-2*del1*del2)*((-Fn1**(rep(-x,times=n))*log(Fn1)-Fn2**(rep(-x,times=n))*log(Fn2))/(Fn1**(rep(-x,times=n))+Fn2**(rep(-x,times=n))-1))
-        )
-  ) # ,na.rm=TRUE
-}
+# # Score functions
+# 
+# Score_MassShift <- function(x){ # Clayton
+#   sum(phat*(rep(1/(x+1),times=n)-
+#               log(Fn1*Fn2)+
+#               (rep(1/x**2,times=n))*log(Fn1**(rep(-x,times=n))+Fn2**(rep(-x,times=n))-1)+
+#               (rep(2+1/x,times=n))*(Fn1**(rep(-x,times=n))*log(Fn1)+ 
+#                                       Fn2**(rep(-x,times=n))*log(Fn2))/
+#               (Fn1**(rep(-x,times=n))+Fn2**(rep(-x,times=n))-1))) # ,na.rm=TRUE
+# }
+# 
+# Score_ShihLouis <- function(x){ # Clayton
+#   sum(del1*del2*(rep(1/(x+1),times=n)-log(Fn1*Fn2))-
+#         (del1*(1-del2)*log(Fn1)+(1-del1)*del2*log(Fn2))-
+#         (
+#           -rep(1/x**2,times=n)*(1-del1*del2)*log(Fn1**(rep(-x,times=n))+Fn2**(rep(-x,times=n))-1)+
+#             (rep(1/x,times=n)*(1-del1*del2)+del1+del2-2*del1*del2)*((-Fn1**(rep(-x,times=n))*log(Fn1)-Fn2**(rep(-x,times=n))*log(Fn2))/(Fn1**(rep(-x,times=n))+Fn2**(rep(-x,times=n))-1))
+#         )
+#   ) # ,na.rm=TRUE
+# }
 
 Max = 100 # seq(from=100,to=200,by=50)
 n = 200
 lambda = 1 # 
-a = 20 # 3/4,4,10
+a = 3 # 3,10 # superior limit of the censoring r.v. uniformly distributed
 
 mean_del = theta_hat_MassShift_vect = theta_hat_ShihLouis_vect = rep(NA,Max)
 
-theta = 3/4
+theta = 1 # copula parameter
 
-alpha = beta = 1
+alpha = beta = 1 # alpha:shape, beta:scale of the margins
+
+CopulaName = "Clayton" # in c("Clayton", "AMH")
+
+if(CopulaName == "Clayton"){
+  
+  MyCopula <- mvdc(copula=claytonCopula(param=theta), # Ali-Mikail-Haq copula for (F(X), F(Y)), theta should be in [0,1]
+                   margins=c("weibull","weibull"), # Weibull distribution for margins X and Y
+                   paramMargins=list(shape=alpha,scale=beta) # alpha:shape, beta:scale
+  )
+}
+
+if(CopulaName == "AMH"){
+  MyCopula <- mvdc(copula=amhCopula(param=theta), # Ali-Mikail-Haq copula for (F(X), F(Y)), theta should be in [0,1]
+                   margins=c("weibull","weibull"), # Weibull distribution for margins X and Y
+                   paramMargins=list(shape=alpha,scale=beta) # alpha:shape, beta:scale
+  )
+}
 
 for(m in 1:Max){
   
@@ -117,13 +133,7 @@ for(m in 1:Max){
   #                 margins=c("weibull","weibull"), # Weibull distribution for margins X and Y
   #                 paramMargins=list(shape=alpha,scale=beta)) # alpha:shape, beta:scale
   
-  MyCopula <- mvdc(copula=amhCopula(param=theta), # Ali-Mikail-Haq copula for (F(X), F(Y)), theta should be in [0,1]
-                   # margins=c("exp","exp"), # exponential distribution for margins X and Y
-                   # paramMargins=list(list(rate=1),list(rate=1))
-                   margins=c("weibull","weibull"), # Weibull distribution for margins X and Y
-                   paramMargins=list(shape=alpha,scale=beta) # alpha:shape, beta:scale
-                   )
-  
+
   set.seed(m)
   XY <- rMvdc(n=n,MyCopula)
   X <- XY[,1]
@@ -131,9 +141,16 @@ for(m in 1:Max){
   
   # Censoring variable
   
-  Cx = runif(n=n,min=0,max=a)#rexp(n=n,rate = lambda)
-  Cy = runif(n=n,min=0,max=a)#rexp(n=n,rate = lambda)
+  if(CopulaName=="Clayton"){
+    Cx = rexp(n=n,rate = lambda)
+    Cy = rexp(n=n,rate = lambda)
+  }
   
+  if(CopulaName=="AMH"){
+    Cx = runif(n=n,min=0,max=a)
+    Cy = runif(n=n,min=0,max=a)
+  }
+
   # Observations
   
   Z1 <- pmin(X,Cx)
@@ -247,31 +264,60 @@ for(m in 1:Max){
   # MLE
   
   #theta_hat_MassShift_vect[m] <- optimise(f=L_MassShift,interval=c(0,50),maximum = TRUE)$maximum
-  theta_hat_MassShift_vect[m] <- optimise(f=logL_MassShift_AMH,interval=c(-1,1),maximum = TRUE)$maximum
+  if(CopulaName=="Clayton"){
+    theta_hat_MassShift_vect[m] <- optimise(f=function(theta){logL_MassShift(theta,CopulaName = "Clayton")},interval=c(0,50),maximum = TRUE)$maximum
+    theta_hat_ShihLouis_vect[m] <- optimise(f=function(theta){logL_ShihLouis(theta,CopulaName = "Clayton")},interval=c(0,50),maximum = TRUE)$maximum
+  }
+  
+  if(CopulaName=="AMH"){
+    theta_hat_MassShift_vect[m] <- optimise(f=function(theta){logL_MassShift(theta,CopulaName = "AMH")},interval=c(-1,1),maximum = TRUE)$maximum
+    theta_hat_ShihLouis_vect[m] <- optimise(f=function(theta){logL_ShihLouis(theta,CopulaName = "AMH")},interval=c(-1,1),maximum = TRUE)$maximum
+  }
+  
+  #theta_hat_MassShift_vect[m] <- optimise(f=logL_MassShift,interval=c(-1,1),maximum = TRUE)$maximum
   #theta_hat_MassShift_vect[m] <- newtonRaphson(fun=Score_MassShift, x0=Theta0)$root
   #theta_hat_MassShift_vect[m] <- uniroot(Score_MassShift, interval=c(0.01,50))$root
   #theta_hat_MassShift_vect[m] <- nlm(f=L_MassShift, p=Theta0)$estimate
   #theta_hat_ShihLouis_vect[m] <- optimise(f=L_ShihLouis,interval=c(0,50),maximum = TRUE)$maximum
-  theta_hat_ShihLouis_vect[m] <- optimise(f=logL_ShihLouis_AMH,interval=c(-1,1),maximum = TRUE)$maximum
+  #theta_hat_ShihLouis_vect[m] <- optimise(f=logL_ShihLouis,interval=c(-1,1),maximum = TRUE)$maximum
   
   mean_del[m] = mean(del)
   
 }
 
-100*(1-mean(mean_del))
+# 100*(1-mean(mean_del))
 
 # c(mean(mean_del)*100,mean(theta_hat_MassShift_vect),mean(theta_hat_ShihLouis_vect),theta,mean(VarTheta))
 
 
 # # Plots for comparing the two log-likelihoods
 
-Theta <- matrix(seq(from=-1,to=1,by=0.1),ncol=1)
-Y_MassShift <- apply(X=Theta,MARGIN=1,FUN=logL_MassShift_AMH) # logL_MassShift
-Y_ShihLouis <- apply(X=Theta,MARGIN=1,FUN=logL_ShihLouis_AMH)
+if(CopulaName=="Clayton"){
+  MinTheta <- 0
+  MaxTheta <- 50
+}
+
+if(CopulaName=="AMH"){
+  MinTheta <- -1
+  MaxTheta <- 1
+}
+
+Theta <- matrix(seq(from=MinTheta,to=MaxTheta,by=0.01),ncol=1)
+
+if(CopulaName=="Clayton"){
+  Y_MassShift <- apply(X=Theta,MARGIN=1,FUN=function(theta){logL_MassShift(theta,CopulaName = "Clayton")})
+  Y_ShihLouis <- apply(X=Theta,MARGIN=1,FUN=function(theta){logL_ShihLouis(theta,CopulaName = "Clayton")})
+}
+
+if(CopulaName=="AMH"){
+  Y_MassShift <- apply(X=Theta,MARGIN=1,FUN=function(theta){logL_MassShift(theta,CopulaName = "AMH")})
+  Y_ShihLouis <- apply(X=Theta,MARGIN=1,FUN=function(theta){logL_ShihLouis(theta,CopulaName = "AMH")})
+}
+
 #c(length(X),length(Y))
 Ylim <- range(c(Y_MassShift[is.finite(Y_MassShift)],Y_ShihLouis[is.finite(Y_ShihLouis)]))
 plot(Theta,Y_MassShift,type='l') # ,ylim=Ylim
-plot(Theta,Y_ShihLouis,type='l') # ,ylim=Ylim
+#plot(Theta,Y_ShihLouis,type='l') # ,ylim=Ylim
 #lines(Theta,Y_ShihLouis,col="red") # ,ylim=Ylim
 #abline(h=0,col="red")
 #plot(Theta,Y_ShihLouis,type='l')
@@ -287,6 +333,8 @@ Var_ShihLouis = mean((theta_hat_ShihLouis_vect-mean(theta_hat_ShihLouis_vect))**
 Bias2_ShihLouis = (mean(theta_hat_ShihLouis_vect)-theta)**2
 
 MSE_ShihLouis=Var_ShihLouis+Bias2_ShihLouis
+
+MSE_MassShift/MSE_ShihLouis
 
 # # Plots for comparing the two MSEs
 
