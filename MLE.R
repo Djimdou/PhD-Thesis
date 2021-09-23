@@ -1,6 +1,6 @@
 # # Packages installation and loading
 
-install.packages(c('copula','pracma','SurvCorr','survival','MASS'))# 'tabulizer','tryCatchLog','mhazard','CASdatasets'
+install.packages(c('copula','pracma','survival','MASS'))# ,'SurvCorr','tabulizer','tryCatchLog','mhazard','CASdatasets'
 
 library(copula) # for claytonCopula
 library(survival) # univariate Kaplan-Meier estimators, kidney data
@@ -91,16 +91,16 @@ logL_ShihLouis <- function(theta,CopulaName){
 #   ) # ,na.rm=TRUE
 # }
 
-Max = 500 # 500
-n = 500 # 500
-lambda = 0.05 # 0.05
-a = 3 # 3,10 # superior limit of the censoring r.v. uniformly distributed
+Max = 1 # 500
+n = 100 # 500
+lambda = 0.5 # 0.05
+a = 30 # 3,30 # superior limit of the censoring r.v. uniformly distributed
 
 mean_del = theta_hat_MassShift_vect = theta_hat_ShihLouis_vect = rep(NA,Max)
 
-theta = 1/2 # copula parameter. 
+theta = 1 # copula parameter. 
 
-alpha = beta = 2 # alpha:shape, beta:scale of the margins
+alpha = beta = 1 # alpha:shape, beta:scale of the margins
 
 CopulaName = "Clayton" # in c("Clayton", "AMH")
 
@@ -285,7 +285,7 @@ for(m in 1:Max){
   
 }
 
-# 100*(1-mean(mean_del))
+# 100*(1-mean(mean_del)) # censoring proportion
 
 # c(mean(mean_del)*100,mean(theta_hat_MassShift_vect),mean(theta_hat_ShihLouis_vect),theta,mean(VarTheta))
 
