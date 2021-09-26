@@ -43,9 +43,9 @@ logL_MassShift <- function(theta,CopulaName){
   
   if(CopulaName == "Nelsen"){ # Nelsen 4.2.20 copula
     logl <- log(1+theta)-
-              (1/theta+1)*log(log(exp(Fn1**(-theta))+exp(Fn2**(-theta))-exp(1)))-
-              (theta+1)*log(Fn1*Fn2) + (Fn1**(-theta)+Fn2**(-theta))-
-              2*log(exp(Fn1**(-theta))+exp(Fn2**(-theta))-exp(1))
+      (1/theta+1)*log(log(exp(Fn1**(-theta))+exp(Fn2**(-theta))-exp(1)))-
+      (theta+1)*log(Fn1*Fn2) + (Fn1**(-theta)+Fn2**(-theta))-
+      2*log(exp(Fn1**(-theta))+exp(Fn2**(-theta))-exp(1))
   }
   
   logL <- sum(phat*logl,na.rm=TRUE)
@@ -62,9 +62,9 @@ logL_ShihLouis <- function(theta,CopulaName){
   
   if(CopulaName == "AMH"){ # -1 <= theta <= 1
     logl <- del1*del2*log(1-2*theta+theta**2+theta*(1-theta)*(Fn1bar+Fn2bar)+theta*(theta+1)*Fn1bar*Fn2bar)-
-            (1+del1+del2)*log(1-theta*(1-Fn1bar)*(1-Fn2bar))+
-            (1-del1)*log(Fn1bar) + (1-del2)*log(Fn2bar) +
-            (1-del1)*del2*log(1-theta*(1-Fn1bar)) + del1*(1-del2)*log(1-theta*(1-Fn2bar))
+      (1+del1+del2)*log(1-theta*(1-Fn1bar)*(1-Fn2bar))+
+      (1-del1)*log(Fn1bar) + (1-del2)*log(Fn2bar) +
+      (1-del1)*del2*log(1-theta*(1-Fn1bar)) + del1*(1-del2)*log(1-theta*(1-Fn2bar))
   }
   
   logL <- sum(logl,na.rm=TRUE)
@@ -92,13 +92,13 @@ logL_ShihLouis <- function(theta,CopulaName){
 # }
 
 Max = 1 # 500
-n = 100 # 500
+n = 500 # 500
 lambda = 0.5 # 0.05
 a = 30 # 3,30 # superior limit of the censoring r.v. uniformly distributed
 
 mean_del = theta_hat_MassShift_vect = theta_hat_ShihLouis_vect = rep(NA,Max)
 
-theta = 1 # copula parameter. 
+theta = 2 # copula parameter
 
 alpha = beta = 1 # alpha:shape, beta:scale of the margins
 
@@ -133,28 +133,28 @@ for(m in 1:Max){
   #                 margins=c("weibull","weibull"), # Weibull distribution for margins X and Y
   #                 paramMargins=list(shape=alpha,scale=beta)) # alpha:shape, beta:scale
   
-
+  
   set.seed(m)
-  XY <- rMvdc(n=n,MyCopula)
-  X <- XY[,1]
-  Y <- XY[,2]
+  X <- rMvdc(n=n,MyCopula)
+  X1 <- X[,1]
+  X2 <- X[,2]
   
   # Censoring variable
   
   if(CopulaName=="Clayton"){
-    Cx = rexp(n=n,rate = lambda)
-    Cy = rexp(n=n,rate = lambda)
+    C1 = rexp(n=n,rate = lambda)
+    C2 = rexp(n=n,rate = lambda)
   }
   
   if(CopulaName=="AMH"){
-    Cx = runif(n=n,min=0,max=a)
-    Cy = runif(n=n,min=0,max=a)
+    C1 = runif(n=n,min=0,max=a)
+    C2 = runif(n=n,min=0,max=a)
   }
-
+  
   # Observations
   
-  Z1 <- pmin(X,Cx)
-  Z2 <- pmin(Y,Cy)
+  Z1 <- pmin(X1,C1)
+  Z2 <- pmin(X2,C2)
   
   ordre = order(Z1,Z2)
   
@@ -162,8 +162,8 @@ for(m in 1:Max){
   Z1=c(Z1[ordre],xinf)
   Z2=c(Z2[ordre],xinf)
   
-  del1 = as.integer(X <= Cx)
-  del2 = as.integer(Y <= Cy)
+  del1 = as.integer(X1 <= C1)
+  del2 = as.integer(X2 <= C2)
   
   del1=del1[ordre]
   del2=del2[ordre]
@@ -289,6 +289,23 @@ for(m in 1:Max){
 
 # c(mean(mean_del)*100,mean(theta_hat_MassShift_vect),mean(theta_hat_ShihLouis_vect),theta,mean(VarTheta))
 
+# # Plot of copulas
+
+#persp(claytonCopula(param=1,dim=2),FUN=dCopula,theta = 30,phi = 30) #
+#plot(X1,X2)
+
+Xlim = c(0,ceiling(max(X1)))
+Ylim = c(0,ceiling(max(X2)))
+Xlabels = seq(from=0,to=ceiling(max(X1)),by=1)
+Ylabels = seq(from=0,to=ceiling(max(X2)),by=1)
+
+plot(X1,X2,xlim=Xlim,ylim=Ylim,xlab="",ylab="",xaxt="none",yaxt="none")
+
+axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
+mtext(side=1, line=2, expression(x[1]), adj=0.6, font=2,cex=1.5)
+axis(2, at=Ylabels,labels=Ylabels,las=0,font=2,hadj=1,padj=0)
+mtext(side=2, line=2, expression(x[2]), adj=0.4, font=2,cex=1.5)
+
 
 # # Plots for comparing the two log-likelihoods
 
@@ -356,18 +373,18 @@ theta_hat <- theta_hat_MassShift_vect[m]
 # Phi
 
 if(CopulaName=="Clayton"){
-Phi <- rep(1/(theta_hat+1),times=n)-
-  log(Fn1[-(n+1)]*Fn2[-(n+1)])+
-  rep(1/theta_hat**2,times=n)*log(Fn1[-(n+1)]**rep(-theta_hat,times=n)+Fn2[-(n+1)]**rep(-theta_hat,times=n)-1)+
-  rep(2+1/theta_hat,times=n)*(Fn1[-(n+1)]**rep(-theta_hat,times=n)*log(Fn1[-(n+1)])+Fn2[-(n+1)]**rep(-theta_hat,times=n)*log(Fn2[-(n+1)]))/(Fn1[-(n+1)]**rep(-theta_hat,times=n)+Fn2[-(n+1)]**rep(-theta_hat,times=n)-1)
+  Phi <- rep(1/(theta_hat+1),times=n)-
+    log(Fn1[-(n+1)]*Fn2[-(n+1)])+
+    rep(1/theta_hat**2,times=n)*log(Fn1[-(n+1)]**rep(-theta_hat,times=n)+Fn2[-(n+1)]**rep(-theta_hat,times=n)-1)+
+    rep(2+1/theta_hat,times=n)*(Fn1[-(n+1)]**rep(-theta_hat,times=n)*log(Fn1[-(n+1)])+Fn2[-(n+1)]**rep(-theta_hat,times=n)*log(Fn2[-(n+1)]))/(Fn1[-(n+1)]**rep(-theta_hat,times=n)+Fn2[-(n+1)]**rep(-theta_hat,times=n)-1)
 }
 
 if(CopulaName=="AMH"){
   Phi <- -3*(1-Fn1)*(1-Fn2)/(1-theta_hat*(1-Fn1)*(1-Fn2))+
-          (2*(theta_hat-1)+(1-2*theta_hat)*(Fn1+Fn2)+(2*theta_hat+1)*Fn1*Fn2)/
-            (1-2*theta_hat+theta_hat**2+theta_hat*(theta_hat-1)*(Fn1+Fn2)+theta_hat*(theta_hat+1)*Fn1*Fn2)
+    (2*(theta_hat-1)+(1-2*theta_hat)*(Fn1+Fn2)+(2*theta_hat+1)*Fn1*Fn2)/
+    (1-2*theta_hat+theta_hat**2+theta_hat*(theta_hat-1)*(Fn1+Fn2)+theta_hat*(theta_hat+1)*Fn1*Fn2)
 }
-  
+
 # NaN produced. Better avoid
 # Phi[is.nan(Phi)] <- Phi[!is.nan(Phi)][1]
 
@@ -447,16 +464,16 @@ V_0z=(MMinv%*%U)%*%MMinv
 Fun_PhiStar <- function(x,y,theta,CopulaName){
   if(CopulaName=="Clayton"){
     PhiStar <- -1/x-
-                rep(1/theta,times=n)*x**rep(-theta-1,times=n)/(x**rep(-theta,times=n)+y**rep(-theta,times=n)-1)+
-                rep(2+1/theta,times=n)*x**rep(-theta-1,times=n)*((x**rep(-theta,times=n)+y**rep(-theta,times=n)-1)*(-rep(theta,times=n)*log(x)+1)+
-                                                                   rep(theta,times=n)*(x**rep(-theta,times=n)*log(x)+y**rep(-theta,times=n)*log(y)))/
-                (x**rep(-theta,times=n)+y**rep(-theta,times=n)-1)**2
+      rep(1/theta,times=n)*x**rep(-theta-1,times=n)/(x**rep(-theta,times=n)+y**rep(-theta,times=n)-1)+
+      rep(2+1/theta,times=n)*x**rep(-theta-1,times=n)*((x**rep(-theta,times=n)+y**rep(-theta,times=n)-1)*(-rep(theta,times=n)*log(x)+1)+
+                                                         rep(theta,times=n)*(x**rep(-theta,times=n)*log(x)+y**rep(-theta,times=n)*log(y)))/
+      (x**rep(-theta,times=n)+y**rep(-theta,times=n)-1)**2
   }
   if(CopulaName=="AMH"){
     PhiStar <- -3*(1-y)/(1-theta*(1-x)*(1-y))**2 +
-                (1-2*theta+(2*theta+1)*y)/(1-2*theta+theta**2+theta*(1-theta)*(x+y)+theta*(theta+1)*x*y)-
-                (theta*(2*(theta-1)+(1-2*theta)*(x+y)+(2*theta+1)*x*y)*((1-theta)*x+theta*(theta+1)*y))/
-                  (1-2*theta+theta**2+theta*(1-theta)*(x+y)+theta*(theta+1)*x*y)**2
+      (1-2*theta+(2*theta+1)*y)/(1-2*theta+theta**2+theta*(1-theta)*(x+y)+theta*(theta+1)*x*y)-
+      (theta*(2*(theta-1)+(1-2*theta)*(x+y)+(2*theta+1)*x*y)*((1-theta)*x+theta*(theta+1)*y))/
+      (1-2*theta+theta**2+theta*(1-theta)*(x+y)+theta*(theta+1)*x*y)**2
   }
   return(PhiStar)
 }
