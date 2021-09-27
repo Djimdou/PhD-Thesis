@@ -93,7 +93,7 @@ logL_ShihLouis <- function(theta,CopulaName){
 
 Max = 1 # 500
 n = 500 # 500
-lambda = 0.5 # 0.05
+lambda = 0.05 # 0.05
 a = 30 # 3,30 # superior limit of the censoring r.v. uniformly distributed
 
 mean_del = theta_hat_MassShift_vect = theta_hat_ShihLouis_vect = rep(NA,Max)
@@ -306,12 +306,11 @@ mtext(side=1, line=2, expression(x[1]), adj=0.6, font=2,cex=1.5)
 axis(2, at=Ylabels,labels=Ylabels,las=0,font=2,hadj=1,padj=0)
 mtext(side=2, line=2, expression(x[2]), adj=0.4, font=2,cex=1.5)
 
-
 # # Plots for comparing the two log-likelihoods
 
 if(CopulaName=="Clayton"){
   MinTheta <- 0
-  MaxTheta <- 50
+  MaxTheta <- 10
 }
 
 if(CopulaName=="AMH"){
@@ -335,7 +334,7 @@ if(CopulaName=="AMH"){
 Ylim <- range(c(Y_MassShift[is.finite(Y_MassShift)],Y_ShihLouis[is.finite(Y_ShihLouis)]))
 plot(Theta,Y_MassShift,type='l') # ,ylim=Ylim
 #plot(Theta,Y_ShihLouis,type='l') # ,ylim=Ylim
-#lines(Theta,Y_ShihLouis,col="red") # ,ylim=Ylim
+#lines(Y_ShihLouis,col="red") # ,ylim=Ylim
 #abline(h=0,col="red")
 #plot(Theta,Y_ShihLouis,type='l')
 
