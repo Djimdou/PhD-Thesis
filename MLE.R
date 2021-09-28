@@ -98,14 +98,12 @@ a = 30 # 3,30 # superior limit of the censoring r.v. uniformly distributed
 
 mean_del = theta_hat_MassShift_vect = theta_hat_ShihLouis_vect = rep(NA,Max)
 
-theta = 2 # copula parameter
+theta = -1/2 # copula parameter
 
-alpha = beta = 2 # alpha:shape, beta:scale of the margins
-
-CopulaName = "Clayton" # in c("Clayton", "AMH")
+CopulaName = "AMH" # in c("Clayton", "AMH")
 
 if(CopulaName == "Clayton"){
-  
+  alpha = beta = 2 # alpha:shape, beta:scale of the margins
   MyCopula <- mvdc(copula=claytonCopula(param=theta), # Ali-Mikail-Haq copula for (F(X), F(Y)), theta should be in [0,1]
                    margins=c("weibull","weibull"), # Weibull distribution for margins X and Y
                    paramMargins=list(shape=alpha,scale=beta) # alpha:shape, beta:scale
@@ -113,6 +111,7 @@ if(CopulaName == "Clayton"){
 }
 
 if(CopulaName == "AMH"){
+  alpha = beta = 1 # alpha:shape, beta:scale of the margins
   MyCopula <- mvdc(copula=amhCopula(param=theta), # Ali-Mikail-Haq copula for (F(X), F(Y)), theta should be in [0,1]
                    margins=c("weibull","weibull"), # Weibull distribution for margins X and Y
                    paramMargins=list(shape=alpha,scale=beta) # alpha:shape, beta:scale
@@ -304,7 +303,7 @@ plot(X1,X2,xlim=Xlim,ylim=Ylim,xlab="",ylab="",xaxt="none",yaxt="none")
 axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 mtext(side=1, line=2, expression(x[1]), adj=0.6, font=2,cex=1.5)
 axis(2, at=Ylabels,labels=Ylabels,las=0,font=2,hadj=1,padj=0)
-mtext(side=2, line=2, expression(x[2]), adj=0.4, font=2,cex=1.5)
+mtext(side=2, line=2, expression(x[2]), adj=0.5, font=2,cex=1.5)
 
 # # Plots for comparing the two log-likelihoods
 
@@ -342,13 +341,13 @@ plot(Theta,Y_ShihLouis,type='l',xlim=Xlim,ylim=Ylim,xlab="",ylab="",xaxt="none",
 abline(v=c(theta_hat_ShihLouis_vect[m],theta),col=c('green','red'),lwd = 2,lty=c(2,2))
 
 mtext(side=1, line=0.8, expression(hat(theta)), at=theta_hat_ShihLouis_vect[m], font=2,cex=1.5,col='green')
-mtext(side=1, line=0.7, expression(theta[0]), at=theta+0.25, font=2,cex=1.5,col='red')
+mtext(side=1, line=0.7, expression(theta[0]), at=theta, font=2,cex=1.5,col='red')
 
 axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 mtext(side=1, line=2, expression(theta), adj=0.5, font=2,cex=1.5)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2,hadj=1,padj=0)
 
-legend("topright",legend=c("log-likelihood","MLE","(true) parameter value"),lwd = 3,col=c("black","green", "red"),lty=1,cex=1.25,bty="n")
+legend(x=0,y=-150,legend=c("log-likelihood","MLE","(true) parameter value"),lwd = 3,col=c("black","green", "red"),lty=c(1,2,2),cex=1.25,bty="n")
 
 
 #plot(Theta,Y_MassShift,type='l') # ,ylim=Ylim
