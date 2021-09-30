@@ -12,34 +12,46 @@ m = 1000
 
 W = 1:m/m #seq(from=1/n,to=1,by=0.01) # grid for the x-axis
 
+CopulaName <- 'Clayton' # one of c('Indep', 'Clayton','AMH','Frank','Gumbel')
+
 # Independence copula
 
-cop <- indepCopula(dim=2)
-Phi_true = -log(W)
+if(CopulaName == 'Indep'){
+  cop <- indepCopula(dim=2)
+  Phi_true = -log(W)
+}
 
 # Clayton copula
 
-theta = 3
-cop <- claytonCopula(param=theta,dim=2)
-Phi_true = (W**(-theta)-1)/theta
+if(CopulaName == 'Clayton'){
+  theta = 1
+  cop <- claytonCopula(param=theta,dim=2)
+  Phi_true = (W**(-theta)-1)/theta
+}
 
 # AMH copula
 
-theta = 0.5
-cop <- amhCopula(param=theta,dim=2)
-Phi_true = log((1-theta*(1-W))/W)/(1-theta)
+if(CopulaName == 'AMH'){
+  theta = 0.5
+  cop <- amhCopula(param=theta,dim=2)
+  Phi_true = log((1-theta*(1-W))/W)/(1-theta)
+}
 
 # Frank
 
-theta = -1
-cop <- frankCopula(param=theta,dim=2)
-Phi_true = -((exp(theta)-1)/theta)*log((exp(-theta*W)-1)/(exp(-theta)-1))
+if(CopulaName == 'Frank'){
+  theta = -1
+  cop <- frankCopula(param=theta,dim=2)
+  Phi_true = -((exp(theta)-1)/theta)*log((exp(-theta*W)-1)/(exp(-theta)-1))
+}
 
 # Gumbel (counter-example)
 
-theta = 10
-cop <- gumbelCopula(param=theta,dim=2)
-Phi_true = (-log(W))**theta
+if(CopulaName == 'Gumbel'){
+  theta = -2
+  cop <- gumbelCopula(param=theta,dim=2)
+  Phi_true = (-log(W))**theta
+}
 
 # # Sampling X and Y
 
@@ -53,16 +65,16 @@ MyCopula <- mvdc(copula=cop, # copula for (F(X), F(Y))
                  paramMargins=list(shape=alpha,scale=beta)) # alpha:shape, beta:scale
 
 #set.seed(1)
-XY <- rMvdc(n=n,MyCopula)
-X <- XY[,1]
-Y <- XY[,2]
+X1X2 <- rMvdc(n=n,MyCopula)
+X1 <- X1X2[,1]
+X2 <- X1X2[,2]
 
 # # Pseudo-sample
 
 V = rep(NA,times=n)
 
 for(i in 1:n){
-  V[i] = (sum((X <= X[i])*(Y <= Y[i])))/(n-1)
+  V[i] = (sum((X1 <= X1[i])*(X2 <= X2[i])))/(n-1)
 }
 
 # # Empirical distribution
@@ -140,7 +152,7 @@ axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 mtext(side=1, line=2, "t", font=2,cex=1.5)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2,hadj=1,padj=0)
 
-legend("topright",legend=c("true density","integral estimator","differential estimator"),lwd = 4,col=c("blue","red", "orange"),lty=1,cex=1.25,bty="n")
+legend("topright",legend=c("true generator","integral estimator","differential estimator"),lwd = 4,col=c("blue","red", "orange"),lty=1,cex=1.25,bty="n")
 
 
 
