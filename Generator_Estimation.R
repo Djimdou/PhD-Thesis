@@ -175,7 +175,7 @@ SimuCopula <- function(CopulaName,W){
   if(CopulaName == 'Clayton'){
     # Clayton copula
     
-    theta = 3
+    theta = 1
     cop <- claytonCopula(param=theta,dim=2)
     Phi_true = (W**(-theta)-1)/theta
   }
@@ -209,35 +209,36 @@ Phi_true = SimuCopula(CopulaName,W)$gen_true
 
 # # Sampling X and Y
 
-N <- seq(from=0,to=1000,by=50) # the 0 will be ignored. N should have at least 2 elements.
+N <- seq(from=100,to=3000,by=500) # the 0 will be ignored. N should have at least 2 elements.
 
-ConvergenceMAtrix <- matrix(rep(0,times=length(W)*(length(N)-1)),ncol=length(W)) # colnames = w, rownames = n
+ConvergenceMAtrix <- matrix(rep(0,times=length(W)*length(N)),ncol=length(W)) # colnames = w, rownames = n
 colnames(ConvergenceMAtrix) <- paste('w',1:length(W),sep='')
 
-for(n.index in 2:length(N)){ # ignoring the value 0 value in N
+# Building the copula object
+
+alpha = 2 # Weibull distribution shape parameter
+beta = 2 # Weibull distribution scale parameter
+
+MyCopula <- mvdc(copula=cop, # copula for (F(X), F(Y))
+                 margins=c("weibull","weibull"), # Weibull distribution for margins X and Y
+                 paramMargins=list(shape=alpha,scale=beta)) # alpha:shape, beta:scale
+
+for(n.index in 1:length(N)){
   
   #n.index <- 1
   n <- N[n.index]
   
-  alpha = 2 # Weibull distribution shape parameter
-  beta = 2 # Weibull distribution scale parameter
-  
-  MyCopula <- mvdc(copula=cop, # copula for (F(X), F(Y))
-                   margins=c("weibull","weibull"), # Weibull distribution for margins X and Y
-                   paramMargins=list(shape=alpha,scale=beta)) # alpha:shape, beta:scale
-  
-  
-  set.seed(5) # 5 for Clayton, AMH, indep
-  XY <- rMvdc(n=n,MyCopula)
-  X <- XY[,1]
-  Y <- XY[,2]
+  set.seed(n) # 5 for Clayton, AMH, indep
+  X1X2 <- rMvdc(n=n,MyCopula)
+  X1 <- X1X2[,1]
+  X2 <- X1X2[,2]
   
   # # Pseudo-sample
   
   V = rep(NA,times=n)
   
   for(i in 1:n){
-    V[i] = (sum((X <= X[i])*(Y <= Y[i])))/(n-1)
+    V[i] = (sum((X1 <= X1[i])*(X2 <= X2[i])))/(n-1)
   }
   
   # # Empirical distribution
@@ -259,7 +260,7 @@ for(n.index in 2:length(N)){ # ignoring the value 0 value in N
   }
   
   Phi_est_diff = approx(x=c(0,Vn,1), y=c(Phi_est[1],Phi_est,0), xout=W, method="constant", ties = "ordered")$y 
-  ConvergenceMAtrix[n.index-1,] <- (sqrt(n)/log(1/n, base = exp(1)))*(Phi_est_diff-Phi_true)/Phi_true
+  ConvergenceMAtrix[n.index,] <- (sqrt(n)/log(1/n, base = exp(1)))*(Phi_est_diff-Phi_true)/Phi_true
 }
 
 # ConvergenceMAtrix may contain infinite values. Replacing such values.
@@ -274,26 +275,27 @@ for(w.index in 1:length(W)){
 #      FUN=function(vecteur){min(vecteur[is.finite(vecteur)])-0.25})
 
 # colors to be used to graph
-MyColors <- c('aquamarine4','bisque1','blue','blueviolet','brown1','burlywood3','darkgreen')
+MyColors <- c('aquamarine4','bisque1','blue','blueviolet','brown1','burlywood3','darkgreen','dodgerblue4','deeppink2','gray1')
 
 # axes ranges
 #Xlim = c(0,500)
 Ylim = range(ConvergenceMAtrix,na.rm = TRUE)
 
 # axis labels
-Xlabels = seq(from=0.05,to=0.95,by=0.01) # N[-1] #seq(from=0,to=500,by=50)
+Xlabels = seq(from=0.05,to=0.95,by=0.1) # N[-1] #seq(from=0,to=500,by=50)
 Ylabels = format(seq(from=Ylim[1],to=Ylim[2],length.out=5),digits=2)
 
 #plot(N[-1],ConvergenceMAtrix[,1],type='l',col=MyColors[1],ylim=Ylim,lwd = 2,xlab="",ylab="",xaxt="none",yaxt="none")
-plot(W,ConvergenceMAtrix[length(N)-1,],type='l',col=MyColors[1],ylim=Ylim,lwd = 2,xlab="",ylab="",xaxt="none",yaxt="none")
+plot(W,ConvergenceMAtrix[1,],type='l',col=MyColors[1],ylim=Ylim,lwd = 2,xlab="",ylab="",xaxt="none",yaxt="none")
 
-# for(w.index in 2:length(W)){
-#   lines(N[-1],ConvergenceMAtrix[,w.index],col=MyColors[w.index],lwd = 2)
-# }
+for(n.index in 2:length(N)){
+  #lines(N[-1],ConvergenceMAtrix[,w.index],col=MyColors[w.index],lwd = 2)
+  lines(W,ConvergenceMAtrix[n.index,],col=MyColors[n.index],lwd = 2)
+}
 
 axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 mtext(side=1, line=3, "w", font=2,cex=1.25)#
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2,hadj=1,padj=0)
 
-legend("bottomright",legend=paste('w=',W,sep=''),lwd = 3,col=MyColors[1:length(W)],lty=1,cex=1.25,bty="n")
+legend("bottom",legend=paste('n=',N,sep=''),lwd = 3,col=MyColors[1:length(W)],lty=1,cex=1.25,bty="n")
 
