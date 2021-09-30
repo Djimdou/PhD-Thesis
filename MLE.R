@@ -92,15 +92,15 @@ logL_ShihLouis <- function(theta,CopulaName){
 # }
 
 Max = 1 # 500
-n = 500 # 500
+n = 100 # 500
 lambda = 0.05 # 0.05
 a = 30 # 3,30 # superior limit of the censoring r.v. uniformly distributed
 
 mean_del = theta_hat_MassShift_vect = theta_hat_ShihLouis_vect = rep(NA,Max)
 
-theta = -1/2 # copula parameter
+theta = 1 # copula parameter
 
-CopulaName = "AMH" # in c("Clayton", "AMH")
+CopulaName = "Clayton" # in c("Clayton", "AMH")
 
 if(CopulaName == "Clayton"){
   alpha = beta = 2 # alpha:shape, beta:scale of the margins
@@ -403,7 +403,7 @@ if(CopulaName=="AMH"){
 }
 
 # NaN produced. Better avoid
-# Phi[is.nan(Phi)] <- Phi[!is.nan(Phi)][1]
+# Phi[is.nan(Phi)] <- mean(Phi[!is.nan(Phi)]) # not helping. Variance is still negative.
 
 # VStar
 
@@ -498,9 +498,9 @@ Fun_PhiStar <- function(x,y,theta,CopulaName){
 PhiStar1 = Fun_PhiStar(x=Fn1[-(n+1)],y=Fn2[-(n+1)],theta=theta_hat,CopulaName=CopulaName)
 PhiStar2 = Fun_PhiStar(x=Fn2[-(n+1)],y=Fn1[-(n+1)],theta=theta_hat,CopulaName=CopulaName)
 
-# Watch out! NaNs produced. 
-# PhiStar1[is.nan(PhiStar1)] <- PhiStar1[!is.nan(PhiStar1)][1]
-# PhiStar2[is.nan(PhiStar2)] <- PhiStar2[!is.nan(PhiStar2)][1]
+# Watch out! NaNs produced. Inputing mean values to the missing ones.
+# PhiStar1[is.nan(PhiStar1)] <- mean(PhiStar1[!is.nan(PhiStar1)]) # not helping. Variance is still negative.
+# PhiStar2[is.nan(PhiStar2)] <- mean(PhiStar2[!is.nan(PhiStar2)]) # not helping. Variance is still negative.
 
 PhiStar1_matrix = matrix(rep(PhiStar1,times=n),ncol=n)
 PhiStar2_matrix = matrix(rep(PhiStar2,times=n),ncol=n)
