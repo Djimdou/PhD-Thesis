@@ -572,7 +572,7 @@ VarTheta <- Var_An/(t(Phi)**2%*%phat)
 
 # # CAS Canada Life Insurance dataset
 
-n=100
+n=3000
 
 canlifins <- get(load('C:/Users/mloudegu/Downloads/CASdatasets_1.0-11/CASdatasets/data/canlifins.rda'))
 
@@ -680,14 +680,17 @@ Fn2 <- 1-Fn2bar
 
 # MLE
 
+theta_hat_MassShift <- optimise(f=function(theta){logL_MassShift(theta,CopulaName = "Clayton")},interval=c(0,50),maximum = TRUE)$maximum
+theta_hat_ShihLouis <- optimise(f=function(theta){logL_ShihLouis(theta,CopulaName = "Clayton")},interval=c(0,50),maximum = TRUE)$maximum
+
 #theta_hat_MassShift_vect[m] <- optimise(f=L_MassShift,interval=c(0,50),maximum = TRUE)$maximum
-theta_hat_MassShift <- optimise(f=logL_MassShift,interval=c(0,50),maximum = TRUE)$maximum
+#theta_hat_MassShift <- optimise(f=logL_MassShift,interval=c(0,50),maximum = TRUE)$maximum
 #theta_hat_MassShift <- optimise(f=logL_MassShift_Nelsen,interval=c(0,1.5),maximum = TRUE)$maximum
 #theta_hat_MassShift_vect[m] <- newtonRaphson(fun=Score_MassShift, x0=Theta0)$root
 #theta_hat_MassShift_vect[m] <- uniroot(Score_MassShift, interval=c(0.01,50))$root
 #theta_hat_MassShift_vect[m] <- nlm(f=L_MassShift, p=Theta0)$estimate
 #theta_hat_ShihLouis_vect[m] <- optimise(f=L_ShihLouis,interval=c(0,50),maximum = TRUE)$maximum
-theta_hat_ShihLouis <- optimise(f=logL_ShihLouis,interval=c(0,50),maximum = TRUE)$maximum
+#theta_hat_ShihLouis <- optimise(f=logL_ShihLouis,interval=c(0,50),maximum = TRUE)$maximum
 
 # # Plot for the two log-likelihood
 
