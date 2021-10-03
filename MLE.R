@@ -28,7 +28,9 @@ library(MASS) # for ginv
 #          ((Fn1bar**(-theta)+Fn2bar**(-theta)-1)**(-1/theta))**((1-del1)*(1-del2))) # , na.rm=TRUE
 # }
 
-# Pseudo-loglikelihood functions
+# # Pseudo-loglikelihood functions
+
+# Compact
 
 logL_MassShift <- function(theta,CopulaName){
   
@@ -52,6 +54,7 @@ logL_MassShift <- function(theta,CopulaName){
   return(logL)
 }
 
+# Full
 
 logL_ShihLouis <- function(theta,CopulaName){
   
@@ -65,6 +68,16 @@ logL_ShihLouis <- function(theta,CopulaName){
       (1+del1+del2)*log(1-theta*(1-Fn1bar)*(1-Fn2bar))+
       (1-del1)*log(Fn1bar) + (1-del2)*log(Fn2bar) +
       (1-del1)*del2*log(1-theta*(1-Fn1bar)) + del1*(1-del2)*log(1-theta*(1-Fn2bar))
+  }
+  
+  if(CopulaName == "Nelsen"){ # theta > 0
+    logl <- del1*del2*log(theta+1)+
+      (del1+del2-del1*del2-1/theta)*log(log(exp(Fn1bar**(-theta))+exp(Fn2bar**(-theta))-exp(1)))-
+      (theta+1)*(-(1/theta+1)*del1+(1/theta+2)*del1*del2)*log(Fn1bar)-
+      (theta+1)*(-(1/theta+1)*del2+(1/theta+2)*del1*del2)*log(Fn2bar)+
+      ((1/theta+1)*del1+(1/theta+2)*del1*del2)*Fn1bar**(-theta)+
+      ((1/theta+1)*del2+(1/theta+2)*del1*del2)*Fn2bar**(-theta)+
+      (1/theta+1)*(del1+del2-2*del1*del2)*log(exp(Fn1bar**(-theta))+exp(Fn2bar**(-theta))-exp(1))
   }
   
   logL <- sum(logl,na.rm=TRUE)
@@ -315,6 +328,11 @@ if(CopulaName=="Clayton"){
 if(CopulaName=="AMH"){
   MinTheta <- -1
   MaxTheta <- 1
+}
+
+if(CopulaName=="Nelsen"){
+  MinTheta <- 0
+  MaxTheta <- 15
 }
 
 Theta <- matrix(seq(from=MinTheta,to=MaxTheta,by=0.01),ncol=1)
@@ -574,7 +592,7 @@ VarTheta <- Var_An/(t(Phi)**2%*%phat)
 
 n=3000
 
-canlifins <- get(load('C:/Users/mloudegu/Downloads/CASdatasets_1.0-11/CASdatasets/data/canlifins.rda'))
+canlifins <- get(load('C:/Users/mloudegu/Documents/CASdatasets_1.0-11/CASdatasets/data/canlifins.rda'))
 
 #head(canlifins)
 
@@ -628,15 +646,15 @@ Fbar=Fbar[-(n+1)]
 
 # # Graph of Fbar: (not good for n=200,500, good for n=100,300)
 
-# FBarFun = function(x,y){
-#   sum(phat[((Z1 >= x)*(Z2 >= y))])
-# }
+FBarFun = function(x,y){
+   sum(phat[((Z1 >= x)*(Z2 >= y))])
+ }
 
-# x = unique(Z1[order(Z1)])
-# y = unique(Z2[order(Z2)])
-# F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
+x = unique(Z1[order(Z1)])
+y = unique(Z2[order(Z2)])
+F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
 
-# persp(x,y,F_bar_grid, theta = 30, phi = 30)
+persp(x,y,F_bar_grid, theta = 30, phi = 30)
 
 #FBarFun = function(x,y){
 #  sum(phat[((Z1 >= x)*(Z2 >= y))])
@@ -680,8 +698,25 @@ Fn2 <- 1-Fn2bar
 
 # MLE
 
-theta_hat_MassShift <- optimise(f=function(theta){logL_MassShift(theta,CopulaName = "Clayton")},interval=c(0,50),maximum = TRUE)$maximum
-theta_hat_ShihLouis <- optimise(f=function(theta){logL_ShihLouis(theta,CopulaName = "Clayton")},interval=c(0,50),maximum = TRUE)$maximum
+CopulaName <- "Nelsen"
+
+if(CopulaName=="Clayton"){
+  MinTheta <- 0
+  MaxTheta <- 10
+}
+
+if(CopulaName=="AMH"){
+  MinTheta <- -1
+  MaxTheta <- 1
+}
+
+if(CopulaName=="Nelsen"){
+  MinTheta <- 0
+  MaxTheta <- 3/4
+}
+
+theta_hat_MassShift <- optimise(f=function(theta){logL_MassShift(theta,CopulaName = CopulaName)},interval=c(MinTheta,MaxTheta),maximum = TRUE)$maximum
+theta_hat_ShihLouis <- optimise(f=function(theta){logL_ShihLouis(theta,CopulaName = CopulaName)},interval=c(MinTheta,MaxTheta),maximum = TRUE)$maximum
 
 #theta_hat_MassShift_vect[m] <- optimise(f=L_MassShift,interval=c(0,50),maximum = TRUE)$maximum
 #theta_hat_MassShift <- optimise(f=logL_MassShift,interval=c(0,50),maximum = TRUE)$maximum
@@ -694,15 +729,45 @@ theta_hat_ShihLouis <- optimise(f=function(theta){logL_ShihLouis(theta,CopulaNam
 
 # # Plot for the two log-likelihood
 
-Theta <- matrix(seq(from=0.01,to=2,by=0.01),ncol=1)
-Y_MassShift <- apply(X=Theta,MARGIN=1,FUN=logL_MassShift_Nelsen) # logL_MassShift
-Y_ShihLouis <- apply(X=Theta,MARGIN=1,FUN=logL_ShihLouis)
+# # Plots for comparing the two log-likelihoods
+
+Theta <- matrix(seq(from=MinTheta,to=MaxTheta,by=0.01),ncol=1)
+
+# if(CopulaName=="Clayton"){
+#   Y_MassShift <- apply(X=Theta,MARGIN=1,FUN=function(theta){logL_MassShift(theta,CopulaName = "Clayton")})
+#   Y_ShihLouis <- apply(X=Theta,MARGIN=1,FUN=function(theta){logL_ShihLouis(theta,CopulaName = "Clayton")})
+# }
+# 
+# if(CopulaName=="AMH"){
+#   Y_MassShift <- apply(X=Theta,MARGIN=1,FUN=function(theta){logL_MassShift(theta,CopulaName = "AMH")})
+#   Y_ShihLouis <- apply(X=Theta,MARGIN=1,FUN=function(theta){logL_ShihLouis(theta,CopulaName = "AMH")})
+# }
+# 
+# if(CopulaName=="AMH"){
+  Y_MassShift <- apply(X=Theta,MARGIN=1,FUN=function(theta){logL_MassShift(theta,CopulaName = CopulaName)})
+  Y_ShihLouis <- apply(X=Theta,MARGIN=1,FUN=function(theta){logL_ShihLouis(theta,CopulaName = CopulaName)})
+#}
+
 #c(length(X),length(Y))
-Ylim <- range(c(Y_MassShift,Y_ShihLouis))
-plot(Theta,Y_MassShift,type='l')
-#lines(Theta,Y_ShihLouis,col="red",ylim=Ylim)
-#abline(h=0,col="red")
-#plot(Theta,Y_ShihLouis,type='l')
+#Ylim <- range(c(Y_MassShift[is.finite(Y_MassShift)],Y_ShihLouis[is.finite(Y_ShihLouis)]))
+
+Xlim = c(MinTheta,MaxTheta)
+Ylim = range(c(Y_ShihLouis[is.finite(Y_ShihLouis)]))
+Xlabels = c(seq(from=MinTheta,to=MaxTheta,length.out=6))
+Ylabels = round(seq(from=Ylim[1],to=Ylim[2],length.out=6),digits=0)
+
+plot(Theta,Y_ShihLouis,type='l',xlim=Xlim,ylim=Ylim,xlab="",ylab="",xaxt="none",yaxt="none",lwd = 2)
+abline(v=c(theta_hat_ShihLouis,theta),col=c('green','red'),lwd = 2,lty=c(2,2))
+
+mtext(side=1, line=0.8, expression(hat(theta)), at=theta_hat_ShihLouis_vect[m], font=2,cex=1.5,col='green')
+mtext(side=1, line=0.7, expression(theta[0]), at=theta, font=2,cex=1.5,col='red')
+
+axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
+mtext(side=1, line=2, expression(theta), adj=0.5, font=2,cex=1.5)
+axis(2, at=Ylabels,labels=Ylabels,las=1,font=2,hadj=1,padj=0)
+
+legend(x=0,y=-150,legend=c("log-likelihood","MLE","(true) parameter value"),lwd = 3,col=c("black","green", "red"),lty=c(1,2,2),cex=1.25,bty="n")
+
 
 # # # Variance
 
