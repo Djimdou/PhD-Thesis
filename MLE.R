@@ -43,12 +43,12 @@ logL_MassShift <- function(theta,CopulaName){
       log(1-2*theta+theta**2+theta*(1-theta)*(Fn1+Fn2)+theta*(theta+1)*Fn1*Fn2)
   }
   
-  if(CopulaName == "Nelsen"){ # Nelsen 4.2.20 copula
-    logl <- log(1+theta)-
-      (1/theta+1)*log(log(exp(Fn1**(-theta))+exp(Fn2**(-theta))-exp(1)))-
-      (theta+1)*log(Fn1*Fn2) + (Fn1**(-theta)+Fn2**(-theta))-
-      2*log(exp(Fn1**(-theta))+exp(Fn2**(-theta))-exp(1))
-  }
+  # if(CopulaName == "Nelsen"){ # Nelsen 4.2.20 copula
+  #   logl <- -(theta+1)*log(Fn1)+Fn1**(-theta)-log(exp(Fn1**(-theta))+exp(Fn2**(-theta))-exp(1))+
+  #             log((1+theta)+theta*Fn2**(-theta-1)*exp(Fn2**(-theta))*log(exp(Fn1**(-theta))+exp(Fn2**(-theta))-exp(1))/
+  #                   (exp(Fn1**(-theta))+exp(Fn2**(-theta))-exp(1)))-
+  #             (1/theta+2)*log(log(exp(Fn1**(-theta))+exp(Fn2**(-theta))-exp(1)))
+  # }
   
   logL <- sum(phat*logl,na.rm=TRUE)
   return(logL)
@@ -70,15 +70,15 @@ logL_ShihLouis <- function(theta,CopulaName){
       (1-del1)*del2*log(1-theta*(1-Fn1bar)) + del1*(1-del2)*log(1-theta*(1-Fn2bar))
   }
   
-  if(CopulaName == "Nelsen"){ # theta > 0
-    logl <- del1*del2*log(theta+1)+
-      (del1+del2-del1*del2-1/theta)*log(log(exp(Fn1bar**(-theta))+exp(Fn2bar**(-theta))-exp(1)))-
-      (theta+1)*(-(1/theta+1)*del1+(1/theta+2)*del1*del2)*log(Fn1bar)-
-      (theta+1)*(-(1/theta+1)*del2+(1/theta+2)*del1*del2)*log(Fn2bar)+
-      ((1/theta+1)*del1+(1/theta+2)*del1*del2)*Fn1bar**(-theta)+
-      ((1/theta+1)*del2+(1/theta+2)*del1*del2)*Fn2bar**(-theta)+
-      (1/theta+1)*(del1+del2-2*del1*del2)*log(exp(Fn1bar**(-theta))+exp(Fn2bar**(-theta))-exp(1))
-  }
+  # if(CopulaName == "Nelsen"){ # theta > 0
+  #   logl <- del1*del2*log(theta+1)+
+  #     (del1+del2-del1*del2-1/theta)*log(log(exp(Fn1bar**(-theta))+exp(Fn2bar**(-theta))-exp(1)))-
+  #     (theta+1)*(-(1/theta+1)*del1+(1/theta+2)*del1*del2)*log(Fn1bar)-
+  #     (theta+1)*(-(1/theta+1)*del2+(1/theta+2)*del1*del2)*log(Fn2bar)+
+  #     ((1/theta+1)*del1+(1/theta+2)*del1*del2)*Fn1bar**(-theta)+
+  #     ((1/theta+1)*del2+(1/theta+2)*del1*del2)*Fn2bar**(-theta)+
+  #     (1/theta+1)*(del1+del2-2*del1*del2)*log(exp(Fn1bar**(-theta))+exp(Fn2bar**(-theta))-exp(1))
+  # }
   
   logL <- sum(logl,na.rm=TRUE)
 }
@@ -646,15 +646,22 @@ Fbar=Fbar[-(n+1)]
 
 # # Graph of Fbar: (not good for n=200,500, good for n=100,300)
 
-FBarFun = function(x,y){
-   sum(phat[((Z1 >= x)*(Z2 >= y))])
- }
-
-x = unique(Z1[order(Z1)])
-y = unique(Z2[order(Z2)])
-F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
-
-persp(x,y,F_bar_grid, theta = 30, phi = 30)
+# FBarFun = function(x,y){
+#   min(Fbar[((Z1 >= x) * (Z2 >= y))])
+#  }
+# 
+# x = unique(Z1[order(Z1)])
+# y = unique(Z2[order(Z2)])
+# F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
+# 
+# persp(x,y,F_bar_grid
+#       #,col='grey'
+#       #,ltheta = 120,lphi = 0
+#       #,theta = 30, phi = 30
+#       #, ticktype = "detailed"
+#       #,zlab="estimated joint survival",xlab="male lifetime",ylab="female lifetime"
+#       #,shade=0.1
+#       )
 
 #FBarFun = function(x,y){
 #  sum(phat[((Z1 >= x)*(Z2 >= y))])
@@ -696,13 +703,31 @@ Fn2 <- 1-Fn2bar
 # Fn1bar[Fn1bar==0] <- min(Fn1bar[Fn1bar!=0])/10**2
 # Fn2bar[Fn2bar==0] <- min(Fn2bar[Fn2bar!=0])/10**2
 
+Xlim = range(Z1,Z2)
+Ylim = c(0,1)
+Xlabels = round(seq(from=Xlim[1],to=Xlim[2],length.out=10),digits=1)
+Ylabels = round(seq(from=Ylim[1],to=Ylim[2],length.out=6),digits=1)
+
+plot(Z1,Fn1bar,type='s',xlim=Xlim,ylim=Ylim,xlab="",ylab="",xaxt="none",yaxt="none",lwd = 2)
+lines(Z2[order(Z2,decreasing=TRUE)],Fn2bar[order(Fn2bar,decreasing=TRUE)],col='red',lwd = 2)
+
+# mtext(side=1, line=0.8, expression(hat(theta)), at=theta_hat_ShihLouis_vect[m], font=2,cex=1.5,col='green')
+# mtext(side=1, line=0.7, expression(theta[0]), at=theta, font=2,cex=1.5,col='red')
+
+axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
+mtext(side=1, line=2, expression(theta), adj=0.5, font=2,cex=1.5)
+axis(2, at=Ylabels,labels=Ylabels,las=1,font=2,hadj=1,padj=0)
+
+legend(x=0,y=-150,legend=c("log-likelihood","MLE","(true) parameter value"),lwd = 3,col=c("black","green", "red"),lty=c(1,2,2),cex=1.25,bty="n")
+
+
 # MLE
 
-CopulaName <- "Nelsen"
+CopulaName <- "Clayton"
 
 if(CopulaName=="Clayton"){
-  MinTheta <- 0
-  MaxTheta <- 10
+  MinTheta <- 0.1
+  MaxTheta <- 5
 }
 
 if(CopulaName=="AMH"){
