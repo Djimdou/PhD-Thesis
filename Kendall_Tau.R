@@ -1,8 +1,8 @@
-
-#install.packages("copula")
+#install.packages("copula","SurvCorr")
 
 library(copula)
 library(MASS)
+library(SurvCorr) # for kidney dataset
 
 # # Functions
 
@@ -182,7 +182,7 @@ FunZDel = function(n,theta,lambda=1,seed,alpha=2,beta=2){
 
 # # Simulations
 
-n = 500 # 500
+n = 1000 # 500
 #Max = 10 # 100 number of samples for MSE 
 Theta = seq(from=0.1,to=5,by=0.2)
 Tau = Theta/(Theta+2)
@@ -197,7 +197,7 @@ for(t in 1:length(Theta)){
   MyCopula <- mvdc(copula=claytonCopula(param=theta), # Ali-Mikail-Haq copula for (F(X), F(Y)), theta should be in [0,1]
                    margins=c("weibull","weibull"), # Weibull distribution for margins X and Y
                    paramMargins=list(shape=alpha,scale=beta) # alpha:shape, beta:scale
-                  )
+  )
   set.seed(t)
   X <- rMvdc(n=n,MyCopula)
   X1 <- X[,1]
@@ -286,8 +286,8 @@ for(t in 1:length(Theta)){
   W_hat = ginv(Matrix1)%*%Matrix2
   
   V_tau[t] = 4**2*(t(Fbar)%*%B%*%V%*%B%*%Fbar+
-                  2*t(Fbar)%*%B%*%W_hat+
-                  t(Fbar)%*%B%*%diag(Fbar)%*%(Id+B%*%D%*%B)%*%diag(Fbar)%*%B%*%Fbar)
+                     2*t(Fbar)%*%B%*%W_hat+
+                     t(Fbar)%*%B%*%diag(Fbar)%*%(Id+B%*%D%*%B)%*%diag(Fbar)%*%B%*%Fbar)
   
 }
 
@@ -300,3 +300,160 @@ plot(Theta,Tau,type="l",ylim=Ylim,col='green')
 lines(Theta,Tau_hat,col='blue')
 lines(Theta,CI_upper,col='red')
 lines(Theta,CI_lower,col='red')
+
+
+
+# # # kidney in patient data
+
+# Epidemiology Data from 
+# McGilchrist, C. A., and C. W. Aisbett. "Regression with Frailty in Survival Analysis."
+# Biometrics, vol. 47, no. 2, 1991, pp. 461-466.
+
+
+#location = 'C:/Users/djimd/OneDrive/Documents/Concordia - PhD/Thesis/McGilchrist_Aisbett-1991.pdf'
+# Data: https://rdrr.io/cran/SurvCorr/man/kidney.html
+
+# Extract the table
+data(kidney)
+# extract_tables(file=location,pages=6)
+
+#data_mc = data.frame(mydata)[-(1:3),2:3]
+
+# strsplit(toString(data.frame(mydata)[-(1:3),2]),",")
+
+#times = matrix(as.numeric(unlist(strsplit(toString(data.frame(mydata)[-(1:3),2]),","))),ncol = 2,byrow =TRUE)
+
+#unlist(strsplit(substring(data.frame(mydata)[-(1:3),3],1,4),","))
+
+#censor = substring(data.frame(mydata)[-(1:3),3],1,4)
+#censor[7] = sub(" ",",",censor[7],fixed=TRUE)
+#censor[34] = sub("?",",",censor[34],fixed=TRUE)
+
+#censoring = matrix(as.numeric(unlist(strsplit(censor,","))),ncol = 2,byrow =TRUE)
+
+#KidneyInfection = cbind.data.frame(times,censoring)
+#colnames(KidneyInfection) = c("T1","T2","uncensored1","uncensored2")
+
+# # Plot times to infection
+
+Xlim <- range(kidney$TIME1)
+Ylim <- range(kidney$TIME2)
+
+Xlabels <- seq(from=0,to=Xlim[2],by=100)
+Ylabels <- seq(from=0,to=Ylim[2],by=100)
+
+plot(kidney$TIME1,kidney$TIME2,xlab="",ylab="",xaxt="none",yaxt="none",xlim=Xlim,ylim=Ylim,lwd=3)
+
+axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
+axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
+
+mtext(side=1, line=2.25, "time to 1st infection", font=2,cex=1.25)
+mtext(side=2, line=2.75, "time to 2nd infection", font=2,cex=1.25)
+
+# # Estimator 
+
+n = dim(kidney)[1]
+
+ordre = order(kidney$TIME1,kidney$TIME2)#
+#Z_ordered = cbind(kidney$T1,kidney$T2)[ordre,]
+
+del1 = kidney$STATUS1 
+del2 = kidney$STATUS2
+
+xinf=max(kidney$TIME1,kidney$TIME2)+1 # CREATING POINT AT INFINITY
+Z1=c(kidney$TIME1[ordre],xinf)
+Z2=c(kidney$TIME2[ordre],xinf)
+
+del1=c(del1,1)
+del2=c(del2,1)
+del=del1*del2
+#del=del[ordre]
+
+az1=matrix(rep(Z1,n+1),ncol=n+1)
+az2=matrix(rep(Z2,n+1),ncol=n+1)
+A=(t(az1)>=az1)*(t(az2)>=az2)
+# Because of ties, A may not be quite upper triangular. We need to convert some numbers to 0.
+A[lower.tri(A, diag = FALSE)] = 0
+rsumA=apply(A,1,sum)
+
+eps=1/(n+1)
+
+b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+B=diag(b)
+
+Id=diag(rep(1,n+1))
+M=rbind(Id-A%*%B,-t(b))
+MMinv=solve(t(M)%*%M)
+Fbar=as.vector(MMinv%*%b) ### <---- THIS IS THE \bar{F} VECTOR
+phat=(solve(A)%*%Fbar)#[-(n+1)] # weights
+
+# Variance estimator
+
+Fbar=Fbar[-(n+1)]
+phat=phat[-(n+1)]
+b=b[-(n+1)]
+A=A[-(n+1),][,-(n+1)]
+B=B[-(n+1),][,-(n+1)]
+Id=diag(1,n)
+M=rbind(Id-A%*%B,-t(b))
+MMinv=solve(t(M)%*%M)
+
+D=(1-A)*(1-t(A))*(A%*%t(A))
+bf=b*Fbar
+BF=diag(bf)
+S=rbind(A%*%BF,t(bf))
+R=S%*%(Id+((B%*%D)%*%B))%*%t(S)
+U=(t(M)%*%R)%*%M
+V=(MMinv%*%U)%*%MMinv
+
+# # Graph of Fbar (good)
+
+FBarFun = function(x,y){
+  sum(phat[((Z1 >= x)*(Z2 >= y))])
+}
+
+x = unique(Z1)
+y = unique(Z2[order(Z2)])
+F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
+
+persp(x,y,F_bar_grid
+      ,col='grey'
+      ,ltheta = 120,lphi = 0
+      ,theta = 30, phi = 30
+      , ticktype = "detailed"
+      ,zlab="estimated joint survival",xlab="time to 1st infection",ylab="time to 2nd infection"
+      #,xlab="",ylab="",zlab="",axes=FALSE#,xaxt="none",yaxt="none"#,zaxt="none"
+      #,shade=0.1
+      ,expand=0.75
+      ,cex.axis=1.25,cex.lab=1.25,font.lab=2
+      )
+
+# Xlim <- range(kidney$TIME1)
+# Ylim <- range(kidney$TIME2)
+# 
+# Xlabels <- seq(from=0,to=Xlim[2],by=100)
+# Ylabels <- seq(from=0,to=Ylim[2],by=100)
+# Zlabels <- seq(from=0,to=1,by=.2)
+# 
+# axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
+# axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
+# axis(3, at=Ylabels,labels=Ylabels,las=1,font=2)
+# 
+# mtext(side=1, line=2.25, "time to first infection", font=1,cex=1.25)
+# mtext(side=2, line=2.75, "time to second infection", font=1,cex=1.25)
+# mtext(side=3, line=2.75, "estimated joint survival", font=1,cex=1.25)
+
+# # Kendall's tau estimate
+
+Tau_hat = 4*(t(phat) %*% Fbar)-1
+
+# # Kendall's tau variance
+
+Matrix1 = rbind(Id - A%*%B,-b)
+Matrix2 = (rbind(A%*%B%*%diag(Fbar),b%*%diag(Fbar)))%*%(Id + B%*%D%*%B)%*%(diag(Fbar)%*%B%*%Fbar)
+
+W_hat = ginv(Matrix1)%*%Matrix2
+
+V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
+  2*t(Fbar)%*%B%*%W_hat+
+  t(Fbar)%*%B%*%diag(Fbar)%*%(Id+B%*%D%*%B)%*%diag(Fbar)%*%B%*%Fbar
