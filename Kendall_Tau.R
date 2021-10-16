@@ -182,7 +182,7 @@ FunZDel = function(n,theta,lambda=1,seed,alpha=2,beta=2){
 
 # # Simulations
 
-n = 1000 # 500
+n = 100 # 500
 #Max = 10 # 100 number of samples for MSE 
 Theta = seq(from=0.1,to=5,by=0.2)
 Tau = Theta/(Theta+2)
@@ -302,6 +302,79 @@ lines(Theta,CI_upper,col='red')
 lines(Theta,CI_lower,col='red')
 
 
+# # # Comparison with WangWells on simulated data
+
+n = 500 # 500
+Max = 100 # 100 number of samples for MSE 
+gamma = Tau_hat = rep(NA,times=Max)
+#del_mean = rep(NA,times=Max) #seems unnecessary
+theta = 3
+#beta=2
+lambda=1
+
+
+#install.packages("copula")
+#library(copula)
+
+for(m in 1:Max){
+  
+  # # Estimator 
+  
+  ZDel = FunZDel_WangWells(n=n,theta=theta,seed=m,lambda=lambda)
+  Z1 = ZDel[[1]]
+  Z2 = ZDel[[2]]
+  del1 = ZDel[[3]]
+  del2 = ZDel[[4]]
+  
+  # # Kendall tau estimate
+  
+  mydata <- data.frame(cbind(Z1,Z2,del1,del2))
+  colnames(mydata) <- c("TIME1","TIME2","STATUS1","STATUS2")
+  
+  gamma[m] <- GammaWangWellsFunc(mydata)
+  
+  ZDel = FunZDel(n=n,theta=theta,seed=m,lambda=lambda)
+  Z1 = ZDel[[1]]
+  Z2 = ZDel[[2]]
+  del = ZDel[[3]]
+  
+  #del_mean[m] = mean(del)
+  
+  az1=matrix(rep(Z1,n+1),ncol=n+1)
+  az2=matrix(rep(Z2,n+1),ncol=n+1)
+  A=(t(az1)>=az1)*(t(az2)>=az2)
+  # Because of ties, A may not be quite upper triangular. We need to convert some numbers to 0.
+  A[lower.tri(A, diag = FALSE)] = 0
+  rsumA=apply(A,1,sum)
+  
+  eps=1/(n+1)
+  
+  b=c((1-eps)*del[1:n]/((1-eps)*(rsumA[1:n]-1)+eps*n),1)
+  B=diag(b)
+  
+  Id=diag(rep(1,n+1))
+  M=rbind(Id-A%*%B,-t(b))
+  MMinv=solve(t(M)%*%M)
+  Fbar=as.vector(MMinv%*%b)
+  
+  phat=(solve(A)%*%Fbar)
+  
+  phat=phat[-(n+1)]
+  Fbar=Fbar[-(n+1)]
+  
+  # # Kendall tau estimate
+  
+  Tau_hat[m] = 4*(t(phat) %*% Fbar)-1
+  
+  #if((m %% 50)==0){print(m)}
+  
+}
+
+# Write to csv
+
+write.csv(x=data.frame(cbind(1:Max,Tau_hat,gamma)),
+          file="C:/Users/djimd/OneDrive/Documents/Concordia - PhD/Thesis/KendallTauComparison_lambda1.csv",
+          row.names = FALSE)
 
 # # # kidney in patient data
 
@@ -426,7 +499,7 @@ persp(x,y,F_bar_grid
       #,shade=0.1
       ,expand=0.75
       ,cex.axis=1.25,cex.lab=1.25,font.lab=2
-      )
+)
 
 # Xlim <- range(kidney$TIME1)
 # Ylim <- range(kidney$TIME2)
@@ -457,3 +530,13 @@ W_hat = ginv(Matrix1)%*%Matrix2
 V_tau = t(Fbar)%*%B%*%V%*%B%*%Fbar+
   2*t(Fbar)%*%B%*%W_hat+
   t(Fbar)%*%B%*%diag(Fbar)%*%(Id+B%*%D%*%B)%*%diag(Fbar)%*%B%*%Fbar
+
+# not good
+
+CI_upper = Tau_hat+1.96*sqrt(V_tau/n) # 
+CI_lower = Tau_hat-1.96*sqrt(V_tau/n) # 
+Ylim = range(Tau,CI_upper,CI_lower)
+plot(Theta,Tau,type="l",ylim=Ylim,col='green')
+lines(Theta,Tau_hat,col='blue')
+lines(Theta,CI_upper,col='red')
+lines(Theta,CI_lower,col='red')
