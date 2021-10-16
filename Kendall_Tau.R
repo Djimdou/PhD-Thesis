@@ -310,7 +310,7 @@ gamma = Tau_hat = rep(NA,times=Max)
 #del_mean = rep(NA,times=Max) #seems unnecessary
 theta = 3
 #beta=2
-lambda=1
+lambda=2
 
 
 #install.packages("copula")
@@ -373,7 +373,7 @@ for(m in 1:Max){
 # Write to csv
 
 write.csv(x=data.frame(cbind(1:Max,Tau_hat,gamma)),
-          file="C:/Users/djimd/OneDrive/Documents/Concordia - PhD/Thesis/KendallTauComparison_lambda1.csv",
+          file="C:/Users/djimd/OneDrive/Documents/Concordia - PhD/Thesis/KendallTauComparison_lambda2.csv",
           row.names = FALSE)
 
 # # # kidney in patient data
