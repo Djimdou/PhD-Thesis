@@ -105,13 +105,13 @@ logL_ShihLouis <- function(theta,CopulaName){
 # }
 
 Max = 1 # 500
-n = 100 # 500
+n = 500 # 500
 lambda = 0.05 # 0.05
 a = 30 # 3,30 # superior limit of the censoring r.v. uniformly distributed
 
 mean_del = theta_hat_MassShift_vect = theta_hat_ShihLouis_vect = rep(NA,Max)
 
-theta = 1 # copula parameter
+theta = 2 # copula parameter
 
 CopulaName = "Clayton" # in c("Clayton", "AMH")
 
@@ -318,6 +318,12 @@ mtext(side=1, line=2, expression(x[1]), adj=0.6, font=2,cex=1.5)
 axis(2, at=Ylabels,labels=Ylabels,las=0,font=2,hadj=1,padj=0)
 mtext(side=2, line=2, expression(x[2]), adj=0.5, font=2,cex=1.5)
 
+# Write to csv (for LaTex)
+
+write.csv(x=data.frame(cbind(X1,X2)),
+          file="C:/Users/mloudegu/Documents/Thesis/clayton_simulated_values_theta-2.csv",
+          row.names = FALSE)
+
 # # Plots for comparing the two log-likelihoods
 
 if(CopulaName=="Clayton"){
@@ -367,6 +373,12 @@ axis(2, at=Ylabels,labels=Ylabels,las=1,font=2,hadj=1,padj=0)
 
 legend(x=0,y=-150,legend=c("log-likelihood","MLE","(true) parameter value"),lwd = 3,col=c("black","green", "red"),lty=c(1,2,2),cex=1.25,bty="n")
 
+
+# Write to csv (for LaTex)
+
+write.csv(x=data.frame(cbind(Theta,Y_MassShift,Y_ShihLouis)),
+          file="C:/Users/mloudegu/Documents/Thesis/log-likelihood_clayton_theta-2.csv",
+          row.names = FALSE)
 
 #plot(Theta,Y_MassShift,type='l') # ,ylim=Ylim
 #plot(Theta,Y_ShihLouis,type='l') # ,ylim=Ylim
@@ -769,8 +781,8 @@ Theta <- matrix(seq(from=MinTheta,to=MaxTheta,by=0.01),ncol=1)
 # }
 # 
 # if(CopulaName=="AMH"){
-  Y_MassShift <- apply(X=Theta,MARGIN=1,FUN=function(theta){logL_MassShift(theta,CopulaName = CopulaName)})
-  Y_ShihLouis <- apply(X=Theta,MARGIN=1,FUN=function(theta){logL_ShihLouis(theta,CopulaName = CopulaName)})
+Y_MassShift <- apply(X=Theta,MARGIN=1,FUN=function(theta){logL_MassShift(theta,CopulaName = CopulaName)})
+Y_ShihLouis <- apply(X=Theta,MARGIN=1,FUN=function(theta){logL_ShihLouis(theta,CopulaName = CopulaName)})
 #}
 
 #c(length(X),length(Y))
