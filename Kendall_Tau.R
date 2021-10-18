@@ -1,8 +1,9 @@
-#install.packages("copula","SurvCorr")
+#install.packages("copula","SurvCorr","berryFunctions")
 
 library(copula)
 library(MASS)
 library(SurvCorr) # for kidney dataset
+library(berryFunctions) # for insertRows
 
 # # Functions
 
@@ -482,11 +483,11 @@ V=(MMinv%*%U)%*%MMinv
 # # Graph of Fbar (good)
 
 FBarFun = function(x,y){
-  sum(phat[((Z1 >= x)*(Z2 >= y))])
+  sum(phat[((Z1[-(n+1)] >= x)*(Z2[-(n+1)] >= y))])
 }
 
-x = unique(Z1)
-y = unique(Z2[order(Z2)])
+x = unique(Z1[-(n+1)])
+y = unique(Z2[-(n+1)][order(Z2[-(n+1)])])
 F_bar_grid <- outer(X=x,Y=y, FUN=Vectorize(FBarFun))
 
 persp(x,y,F_bar_grid
@@ -500,6 +501,32 @@ persp(x,y,F_bar_grid
       ,expand=0.75
       ,cex.axis=1.25,cex.lab=1.25,font.lab=2
 )
+
+# Save csv file for LaTex
+
+# A=1:3;B=4:7;AB=expand.grid(A,B);
+# F=as.vector(outer(X=A,Y=B, FUN=Vectorize(function(x,y){x*y})))
+# cbind(AB,F)
+
+# A <- rep(1:4,times=3);A # want to insert empty line after every 4 consecutive values
+# B <- insertRows(df=data.frame(A),r=(length(unique(A))+1)*(1:3),new="")
+ 
+xy <- expand.grid(x,y)
+MatrixForCSV <- data.frame(cbind(xy,as.vector(F_bar_grid)))
+#MatrixForCSV <- insertRows(df=data.frame(MatrixForCSV),r=(length(x)+1)*(1:length(y)),new="")
+#xy <- yx[,2:1]
+
+write.csv(x=MatrixForCSV,
+          file="C:/Users/mloudegu/Documents/Thesis/KidneyFnBar.csv",
+          row.names = FALSE)
+
+# write.csv(x=F_bar_grid,
+#           file="C:/Users/mloudegu/Documents/Thesis/KidneyFnBar_matrix.csv"
+#           ,row.names = FALSE)
+
+# write.csv(x=cbind(Z1[-(n+1)],Z2[-(n+1)],Fbar),
+#           file="C:/Users/mloudegu/Documents/Thesis/KidneyFnBar.csv",
+#           row.names = FALSE)
 
 # Xlim <- range(kidney$TIME1)
 # Ylim <- range(kidney$TIME2)

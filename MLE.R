@@ -1,6 +1,6 @@
 # # Packages installation and loading
 
-install.packages(c('copula','pracma','survival','MASS'))# ,'SurvCorr','tabulizer','tryCatchLog','mhazard','CASdatasets'
+#install.packages(c('copula','pracma','survival','MASS'))# ,'SurvCorr','tabulizer','tryCatchLog','mhazard','CASdatasets'
 
 library(copula) # for claytonCopula
 library(survival) # univariate Kaplan-Meier estimators, kidney data
@@ -105,13 +105,13 @@ logL_ShihLouis <- function(theta,CopulaName){
 # }
 
 Max = 1 # 500
-n = 500 # 500
-lambda = 0.05 # 0.05
+n = 200 # 500
+lambda = 0.05 # 0.5
 a = 30 # 3,30 # superior limit of the censoring r.v. uniformly distributed
 
 mean_del = theta_hat_MassShift_vect = theta_hat_ShihLouis_vect = rep(NA,Max)
 
-theta = 2 # copula parameter
+theta = 3 # copula parameter
 
 CopulaName = "Clayton" # in c("Clayton", "AMH")
 
@@ -321,7 +321,7 @@ mtext(side=2, line=2, expression(x[2]), adj=0.5, font=2,cex=1.5)
 # Write to csv (for LaTex)
 
 write.csv(x=data.frame(cbind(X1,X2)),
-          file="C:/Users/mloudegu/Documents/Thesis/clayton_simulated_values_theta-2.csv",
+          file="C:/Users/mloudegu/Documents/Thesis/amh_simulated_values_theta-1-2.csv",
           row.names = FALSE)
 
 # # Plots for comparing the two log-likelihoods
@@ -377,7 +377,7 @@ legend(x=0,y=-150,legend=c("log-likelihood","MLE","(true) parameter value"),lwd 
 # Write to csv (for LaTex)
 
 write.csv(x=data.frame(cbind(Theta,Y_MassShift,Y_ShihLouis)),
-          file="C:/Users/mloudegu/Documents/Thesis/log-likelihood_clayton_theta-2.csv",
+          file="C:/Users/mloudegu/Documents/Thesis/log-likelihood_amh_theta-1-2.csv",
           row.names = FALSE)
 
 #plot(Theta,Y_MassShift,type='l') # ,ylim=Ylim
