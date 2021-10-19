@@ -12,7 +12,7 @@ m = 1000
 
 W = 1:m/m #seq(from=1/n,to=1,by=0.01) # grid for the x-axis
 
-CopulaName <- "AMH" # one of c("Indep", "Clayton", "AMH", "Frank", Gumbel)
+CopulaName <- "Frank" # one of c("Indep", "Clayton", "AMH", "Frank", Gumbel)
   
 if(CopulaName == "Indep"){
   
@@ -66,7 +66,7 @@ if(CopulaName == "Gumbel"){
 
 # # Sampling X and Y
 
-n = 100 # size of sample
+n = 500 # size of sample
 
 alpha = 2 # Weibull distribution shape parameter
 beta = 2 # Weibull distribution scale parameter
@@ -75,7 +75,7 @@ MyCopula <- mvdc(copula=cop, # copula for (F(X), F(Y))
                  margins=c("weibull","weibull"), # Weibull distribution for margins X and Y
                  paramMargins=list(shape=alpha,scale=beta)) # alpha:shape, beta:scale
 
-#set.seed(1)
+#set.seed(5)
 X1X2 <- rMvdc(n=n,MyCopula)
 X1 <- X1X2[,1]
 X2 <- X1X2[,2]
@@ -147,6 +147,12 @@ axis(2, at=Ylabels,labels=Ylabels,las=1,font=2,hadj=1,padj=0)
 legend("topright",legend=c("true density","integral estimator","differential estimator"),lwd = 4,col=c("blue","red", "orange"),lty=1,cex=1.25,bty="n")
 
 
+# Write to csv for LaTex
+
+write.csv(x=data.frame(cbind(W,Phi_true,Phi_est_int,Phi_est_diff)),
+          file="C:/Users/mloudegu/Documents/Thesis/phi_estim_frank_500.csv",
+          row.names = FALSE)
+
 
 
 # # # # # # # # #  Limiting behavior of Estimator 1 (differential) # # # # # # # # # # # # # 
@@ -207,7 +213,7 @@ W = seq(from=0.05,to=0.95,by=0.01) # seq(from=0.2,to=0.9,by=0.2)
 
 # CopulaNames <- c('Indep','Clayton','AMH','Frank')
 
-CopulaName <- 'Indep' # select the copula
+CopulaName <- 'Frank' # select the copula
 cop = SimuCopula(CopulaName,W)$cop
 Phi_true = SimuCopula(CopulaName,W)$gen_true
 
@@ -302,3 +308,9 @@ mtext(side=1, line=3, "w", font=2,cex=1.25)#
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2,hadj=1,padj=0)
 
 legend("bottom",legend=paste('n=',N,sep=''),lwd = 3,col=MyColors[1:length(W)],lty=1,cex=1.25,bty="n")
+
+# Write to csv for LaTex
+
+write.csv(x=data.frame(cbind(W,t(ConvergenceMAtrix))),
+          file="C:/Users/mloudegu/Documents/Thesis/phi_conv_w_frank.csv",
+          row.names = FALSE,na="")
