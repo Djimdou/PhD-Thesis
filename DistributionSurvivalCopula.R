@@ -2,7 +2,7 @@
 
 # # Preliminary
 
-install.packages("GoFKernel")
+#install.packages("GoFKernel")
 library(GoFKernel)
 
 A = seq(from=0.01,to=1/2,by=0.01)
@@ -50,6 +50,12 @@ mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2, "density", font=2,cex=1.5)
 legend(x=0.6,y=4,legend=c("estimated density", "true density"),lwd = 4,col=c("red", "green"),lty=1,cex=1.25,bty="n")
 
+# Write to csv
+
+write.csv(x=data.frame(cbind(Z,k_true,k_est)),
+          file="C:/Users/mloudegu/Documents/Thesis/independence_density.csv",
+          row.names = FALSE)
+
 # Comparison with simulated values
 
 W = runif(n=N, min = 0, max = 1)
@@ -81,11 +87,7 @@ axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2, "density", font=2,cex=1.5)
 
-# Write to csv
 
-write.csv(x=data.frame(cbind(Z,k_true,k_est)),
-          file="C:/Users/mloudegu/Documents/Thesis/Kendall_independence.csv",
-          row.names = FALSE)
 
 # Graphics for psi and its inverse
 
@@ -133,9 +135,12 @@ axis(1, at=Ylabels,labels=Ylabels,las=1,font=2)
 axis(2, at=Xlabels,labels=Xlabels,las=1,font=2)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
 
+# Write to csv for LaTex plots
+
 write.csv(x=data.frame(cbind(Z,t(inv_a_z[c(11,25,45),]))),
           file="C:/Users/mloudegu/Documents/Thesis/independence_psi-inverse.csv",
           row.names = FALSE)
+
 
 # # # Clayton copula
 
@@ -168,39 +173,55 @@ plot(Z,k_est[1,],type="l",lwd = 4,col="green",xlab="",ylab="",ylim=Ylim,xaxt="no
 lines(Z,k_est[2,],lwd = 4,col="blue")
 lines(Z,k_est[3,],lwd = 4,col="red")
 lines(Z,k_est[4,],lwd = 4,col="grey")
-lines(Z,k_est[5,],lwd = 4,col="black")
+#lines(Z,k_est[5,],lwd = 4,col="black")
 axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2.5, "density", font=2,cex=1.5)
 legend(x=0.8,y=3.5,legend=expression(paste(theta,"=0.1"),paste(theta,"=1"),paste(theta,"=3"),paste(theta,"=5")),lwd=4,col=c("green","blue","red","grey","black"),lty=1,bty="n",cex=1.25)
 
+# Write to csv
+
+write.csv(x=data.frame(cbind(Z,t(k_est))),
+          file="C:/Users/mloudegu/Documents/Thesis/clayton_density.csv",
+          row.names = FALSE)
 
 # Comparison with simulated values (reject)
 
-t=3
+t.vect <- c(1,3)
 
-W = runif(n=N, min = 0, max = 1)
-S = rbeta(n=N,shape1=1,shape2=1/Theta[t])
+W <- runif(n=N, min = 0, max = 1)
+density_C_star <- matrix(NA,ncol=length(Z),nrow=length(t.vect))
 
-T = (S**(-Theta[t])-1)/Theta[t]
+for(t in 1:length(t.vect)){
+  S <- rbeta(n=N,shape1=1,shape2=1/t.vect[t])
+  T <- (S**(-t.vect[t])-1)/t.vect[t]
+  C_star <- 1-(t.vect[t]*W*T+1)**(-1/t.vect[t])-(t.vect[t]*(1-W)*T+1)**(-1/t.vect[t])+(t.vect[t]*T+1)**(-1/t.vect[t])
+  density_C_star[t,] <- density(C_star,from=0,to=1,n=length(Z))$y
+}
 
-C_star = 1-(Theta[t]*W*T+1)**(-1/Theta[t])-(Theta[t]*(1-W)*T+1)**(-1/Theta[t])+(Theta[t]*T+1)**(-1/Theta[t])
+# Pick a value in t.vect for graphique
 
-density_C_star = density(C_star,from=0,to=1,n=length(Z))
+t <- 2# from 1:length(t.vect)
 
-Ylim = range(c(k_est[t,],density_C_star$y))
+Ylim = range(c(k_est[t,],density_C_star[t,]))
 Xlabels = seq(from=0,to=1,by=0.2)
 Ylabels = seq(from=floor(Ylim[1]),to=ceiling(Ylim[2]),length.out=5)
 par(mfrow=c(1,1))
+
 plot(Z,k_est[t,],type="l",lwd = 4,col="red",xlab="",ylab="",ylim=Ylim,xaxt="none",yaxt="none")
-lines(density_C_star,lwd = 4,col="blue")
+lines(Z,density_C_star[t,],lwd = 4,col="blue")
 axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2, "density", font=2,cex=1.5)
 legend(x=0.4,y=max(Ylim),legend=c("density from Theorem 2.1","density from simulated values"),lwd = 4,col=c("red","blue"),lty=1,cex=1.25,bty="n")
 
+# Write to csv for LaTex
+
+write.csv(x=data.frame(cbind(Z,t(k_est[c(2,3),])),t(density_C_star)), # c(2,3) correspond to theta=1 and theta=3
+          file="C:/Users/mloudegu/Documents/Thesis/clayton_density_simu.csv",
+          row.names = FALSE)
 
 # Graphics for the density of Kendall function
 
@@ -255,6 +276,13 @@ axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2.25, "b", font=2,cex=1.5)
 
+# Write to csv for LaTex plots
+
+write.csv(x=data.frame(cbind(B[B<=50],psi(A[11],B[B<=50]),psi(A[25],B[B<=50]),psi(A[45],B[B<=50]))),
+          file="C:/Users/mloudegu/Documents/Thesis/clayton_psi.csv",
+          row.names = FALSE)
+
+
 Xlim = c(0,1)
 Ylim = range(c(inv_a_z[11,inv_a_z[11,]<=500],inv_a_z[25,inv_a_z[11,]<=500],inv_a_z[45,inv_a_z[11,]<=500]))
 
@@ -273,6 +301,12 @@ plot(Z[inv_a_z[45,]<=500],inv_a_z[45,inv_a_z[45,]<=500],type="l",col="red",lwd =
 axis(1, at=Ylabels,labels=Ylabels,las=1,font=2)
 axis(2, at=Xlabels,labels=Xlabels,las=1,font=2)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
+
+# Write to csv for LaTex plots
+
+write.csv(x=data.frame(cbind(Z,t(inv_a_z[c(11,25,45),]))),
+          file="C:/Users/mloudegu/Documents/Thesis/clayton_psi-inverse.csv",
+          row.names = FALSE)
 
 
 
@@ -321,41 +355,95 @@ mtext(side=2, line=2.5, "density", font=2,cex=1.5)
 legend(x=0.6,y=4,legend=expression(paste(theta,"=1"),paste(theta,"=1.5"),paste(theta,"=3"),paste(theta,"=5"),paste(theta,"=10")),lwd=4,col=c("green","blue","red","grey","black"),lty=1,bty="n",cex=1.25)
 
 
+# Write to csv
+
+write.csv(x=data.frame(cbind(Z,t(k_est))),
+          file="C:/Users/mloudegu/Documents/Thesis/gumbel_density.csv",
+          row.names = FALSE,na = "")
+
+
 # Comparison with simulated values (reject)
 
-t=3
+# t=2
+# 
+# W = runif(n=N, min = 0, max = 1)
+# U = runif(n=N, min = 0, max = 1)
+# 
+# S = rep(NA,times=N)
+# 
+# for (i in 1:N){
+#   if(U[i] < 1/Theta[t]){
+#     S[i] = exp(-rgamma(n=1,shape=2,rate=1))
+#   } else {
+#     S[i] = runif(n=1,min=0,max=1)
+#   }
+# }
+# 
+# T = (-log(S))**Theta[t]
+# 
+# C_star = 1-exp(-(W*T)**(1/Theta[t]))-exp(-((1-W)*T)**(1/Theta[t]))+exp(-T**(1/Theta[t]))
+# 
+# density_C_star = density(C_star,from=0,to=1,n=length(Z))
+
+t.vect <- c(1.5,3)
 
 W = runif(n=N, min = 0, max = 1)
 U = runif(n=N, min = 0, max = 1)
-
+density_C_star <- matrix(NA,ncol=length(Z),nrow=length(t.vect))
 S = rep(NA,times=N)
 
-for (i in 1:N){
-  if(U[i] < 1/Theta[t]){
-    S[i] = exp(-rgamma(n=1,shape=2,rate=1))
-  } else {
-    S[i] = runif(n=1,min=0,max=1)
+for(t in 1:length(t.vect)){
+
+    for (i in 1:N){
+    if(U[i] < 1/t.vect[t]){
+      S[i] = exp(-rgamma(n=1,shape=2,rate=1))
+    } else {
+      S[i] = runif(n=1,min=0,max=1)
+    }
   }
+  
+  T = (-log(S))**t.vect[t]
+
+  C_star <- 1-exp(-(W*T)**(1/t.vect[t]))-exp(-((1-W)*T)**(1/t.vect[t]))+exp(-T**(1/t.vect[t]))
+  density_C_star[t,] <- density(C_star,from=0,to=1,n=length(Z))$y
 }
 
-T = (-log(S))**Theta[t]
+# Ylim = range(c(k_est[t,],density_C_star$y), na.rm = TRUE)
+# Xlabels = seq(from=0,to=1,by=0.2)
+# Ylabels = seq(from=floor(Ylim[1]),to=ceiling(Ylim[2]),length.out = 6)
+# par(mfrow=c(1,1))
+# plot(Z,k_est[t,],type="l",lwd = 4,col="red",xlab="",ylab="",ylim=Ylim,xaxt="none",yaxt="none")
+# lines(density_C_star,lwd = 4,col="blue")
+# axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
+# axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
+# mtext(side=1, line=2, "z", font=2,cex=1.5)
+# mtext(side=2, line=2, "density", font=2,cex=1.5)
+# legend(x=0,y=0.5,legend=c("density from Theorem 2.1","density from simulated values"),lwd = 4,col=c("red","blue"),lty=1,cex=1.25,bty="n")
 
-C_star = 1-exp(-(W*T)**(1/Theta[t]))-exp(-((1-W)*T)**(1/Theta[t]))+exp(-T**(1/Theta[t]))
 
-density_C_star = density(C_star,from=0,to=1,n=length(Z))
+# Pick a value in t.vect for graphique
 
-Ylim = range(c(k_est[t,],density_C_star$y), na.rm = TRUE)
+t <- 2 # from 1:length(t.vect)
+
+Ylim = range(c(k_est[t+1,],density_C_star[t,]), na.rm = TRUE)
 Xlabels = seq(from=0,to=1,by=0.2)
-Ylabels = seq(from=floor(Ylim[1]),to=ceiling(Ylim[2]),length.out = 6)
+Ylabels = seq(from=floor(Ylim[1]),to=ceiling(Ylim[2]),length.out=5)
 par(mfrow=c(1,1))
-plot(Z,k_est[t,],type="l",lwd = 4,col="red",xlab="",ylab="",ylim=Ylim,xaxt="none",yaxt="none")
-lines(density_C_star,lwd = 4,col="blue")
+
+plot(Z,k_est[t+1,],type="l",lwd = 4,col="red",xlab="",ylab="",ylim=Ylim,xaxt="none",yaxt="none")
+lines(Z,density_C_star[t,],lwd = 4,col="blue")
 axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2, "density", font=2,cex=1.5)
-legend(x=0,y=0.5,legend=c("density from Theorem 2.1","density from simulated values"),lwd = 4,col=c("red","blue"),lty=1,cex=1.25,bty="n")
+legend(x=0.4,y=max(Ylim),legend=c("density from Theorem 2.1","density from simulated values"),lwd = 4,col=c("red","blue"),lty=1,cex=1.25,bty="n")
 
+
+# Write to csv for LaTex
+
+write.csv(x=data.frame(cbind(Z,t(k_est[c(2,3),])),t(density_C_star)), # c(2,3) correspond to theta=1 and theta=3
+          file="C:/Users/mloudegu/Documents/Thesis/gumbel_density_simu.csv",
+          row.names = FALSE, na = "")
 
 # Graphics for the Kendall density (of the copula)
 
@@ -409,6 +497,12 @@ axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2.25, "b", font=2,cex=1.5)
 
+# Write to csv for LaTex plots
+
+write.csv(x=data.frame(cbind(B[B<=50],psi(A[11],B[B<=50]),psi(A[25],B[B<=50]),psi(A[45],B[B<=50]))),
+          file="C:/Users/mloudegu/Documents/Thesis/gumbel_psi.csv",
+          row.names = FALSE)
+
 Xlim = c(0,1)
 Ylim = range(c(inv_a_z[11,inv_a_z[11,]<=500],inv_a_z[25,inv_a_z[11,]<=500],inv_a_z[45,inv_a_z[11,]<=500]))
 
@@ -427,6 +521,12 @@ plot(Z[inv_a_z[45,]<=500],inv_a_z[45,inv_a_z[45,]<=500],type="l",col="red",lwd =
 axis(1, at=Ylabels,labels=Ylabels,las=1,font=2)
 axis(2, at=Xlabels,labels=Xlabels,las=1,font=2)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
+
+# Write to csv for LaTex plots
+
+write.csv(x=data.frame(cbind(Z,t(inv_a_z[c(11,25,45),]))),
+          file="C:/Users/mloudegu/Documents/Thesis/gumbel_psi-inverse.csv",
+          row.names = FALSE)
 
 
 # # # Ali-Mikhail-Haq 
@@ -472,6 +572,12 @@ mtext(side=1, line=2, "z", font=2,cex=1.5)
 mtext(side=2, line=2.5, "density", font=2,cex=1.5)
 legend(x=0.6,y=7,legend=expression(paste(theta,"=-1"),paste(theta,"=-0.5"),paste(theta,"=0"),paste(theta,"=0.5"),paste(theta,"=0.99")),lwd=4,col=c("red","blue","green","grey","black"),lty=1,bty="n",cex=1.25)
 
+# Write to csv
+
+write.csv(x=data.frame(cbind(Z,t(k_est))),
+          file="C:/Users/mloudegu/Documents/Thesis/amh_density.csv",
+          row.names = FALSE,na = "")
+
 
 # Graphics for the Kendall density (of the copula)
 
@@ -508,31 +614,50 @@ psi = function(a,b){1-(1-Theta[4])/(exp(a*b)-Theta[4])-(1-Theta[4])/(exp((1-a)*b
 Xlabels = seq(from=0,to=50,by=5)
 Ylabels = seq(from=0,to=1,by=0.2)
 par(mfrow=c(1,1))
+
 plot(B[B<=50],psi(A[11],B[B<=50]),type="l",col="blue",lwd = 4,xlab="",ylab="",xaxt="none",yaxt="none")
 axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2.25, "b", font=2,cex=1.5)
+
 plot(B[B<=50],psi(A[25],B[B<=50]),type="l",col="blue",lwd = 4,xlab="",ylab="",xaxt="none",yaxt="none")
 axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2.25, "b", font=2,cex=1.5)
+
 plot(B[B<=50],psi(A[45],B[B<=50]),type="l",col="blue",lwd = 4,xlab="",ylab="",xaxt="none",yaxt="none")
 axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2.25, "b", font=2,cex=1.5)
+
+# Write to csv for LaTex plots
+
+write.csv(x=data.frame(cbind(B[B<=50],psi(A[11],B[B<=50]),psi(A[25],B[B<=50]),psi(A[45],B[B<=50]))),
+          file="C:/Users/mloudegu/Documents/Thesis/amh_psi.csv",
+          row.names = FALSE)
+
 Ylim = range(c(inv_a_z[11,],inv_a_z[25,],inv_a_z[45,]))
 Xlabels = seq(from=0,to=1,by=0.2)
 Ylabels = seq(from=0,to=6,by=1)
 par(mfrow=c(1,1))
+
 plot(Z,inv_a_z[11,],type="l",col="red",lwd = 4,xlab="",ylab="",ylim=Ylim,xaxt="none",yaxt="none")
 axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
+
 plot(Z,inv_a_z[25,],type="l",col="red",lwd = 4,xlab="",ylab="",ylim=Ylim,xaxt="none",yaxt="none")
 axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
+
 plot(Z,inv_a_z[45,],type="l",col="red",lwd = 4,xlab="",ylab="",ylim=Ylim,xaxt="none",yaxt="none")
 axis(1, at=Xlabels,labels=Xlabels,las=1,font=2)
 axis(2, at=Ylabels,labels=Ylabels,las=1,font=2)
 mtext(side=1, line=2, "z", font=2,cex=1.5)
+
+# Write to csv for LaTex plots
+
+write.csv(x=data.frame(cbind(Z,t(inv_a_z[c(11,25,45),]))),
+          file="C:/Users/mloudegu/Documents/Thesis/amh_psi-inverse.csv",
+          row.names = FALSE)
