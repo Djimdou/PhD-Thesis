@@ -309,7 +309,7 @@ n = 500 # 500
 Max = 100 # 100 number of samples for MSE 
 gamma = Tau_hat = rep(NA,times=Max)
 #del_mean = rep(NA,times=Max) #seems unnecessary
-theta = 3
+theta = 1
 #beta=2
 lambda=2
 
@@ -332,7 +332,7 @@ for(m in 1:Max){
   mydata <- data.frame(cbind(Z1,Z2,del1,del2))
   colnames(mydata) <- c("TIME1","TIME2","STATUS1","STATUS2")
   
-  gamma[m] <- GammaWangWellsFunc(mydata)
+  #gamma[m] <- GammaWangWellsFunc(mydata)
   
   ZDel = FunZDel(n=n,theta=theta,seed=m,lambda=lambda)
   Z1 = ZDel[[1]]
@@ -513,12 +513,14 @@ persp(x,y,F_bar_grid
  
 xy <- expand.grid(x,y)
 MatrixForCSV <- data.frame(cbind(xy,as.vector(F_bar_grid)))
-#MatrixForCSV <- insertRows(df=data.frame(MatrixForCSV),r=(length(x)+1)*(1:length(y)),new="")
+MatrixForCSV <- insertRows(df=data.frame(MatrixForCSV),r=(length(x)+1)*(1:length(y)),new="")
 #xy <- yx[,2:1]
 
 write.csv(x=MatrixForCSV,
-          file="C:/Users/mloudegu/Documents/Thesis/KidneyFnBar.csv",
+          file="C:/Users/mloudegu/Documents/Thesis/KidneyFnBar.txt",
           row.names = FALSE)
+
+# Then remove the quotation marks and leave the empty rows empty.
 
 # write.csv(x=F_bar_grid,
 #           file="C:/Users/mloudegu/Documents/Thesis/KidneyFnBar_matrix.csv"
