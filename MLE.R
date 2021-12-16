@@ -8,6 +8,7 @@ library(pracma) # for NewtonRaphson procedure
 #library(tryCatchLog) # errors and warnings management
 library(MASS) # for ginv
 #library(CASdatasets)
+library(SurvCorr) # for kidney dataset
 
 
 # # # MSE (simulation data)
@@ -633,6 +634,35 @@ Z2 <- c(Z_ordered[,2],xinf)
 
 del <- del1*del2
 
+# # kidney in patient data
+
+# Epidemiology Data from 
+# McGilchrist, C. A., and C. W. Aisbett. "Regression with Frailty in Survival Analysis."
+# Biometrics, vol. 47, no. 2, 1991, pp. 461-466.
+
+
+#location = 'C:/Users/djimd/OneDrive/Documents/Concordia - PhD/Thesis/McGilchrist_Aisbett-1991.pdf'
+# Data: https://rdrr.io/cran/SurvCorr/man/kidney.html
+
+# Extract the table
+data(kidney)
+
+n = dim(kidney)[1]
+
+ordre = order(kidney$TIME1,kidney$TIME2)#
+#Z_ordered = cbind(kidney$T1,kidney$T2)[ordre,]
+
+del1 = kidney$STATUS1 
+del2 = kidney$STATUS2
+
+xinf=max(kidney$TIME1,kidney$TIME2)+1 # CREATING POINT AT INFINITY
+Z1=c(kidney$TIME1[ordre],xinf)
+Z2=c(kidney$TIME2[ordre],xinf)
+
+del1=c(del1,1)
+del2=c(del2,1)
+del=del1*del2
+
 # Phat and Fbar (for Mass-shifting estimator)
 
 az1=matrix(rep(Z1,n+1),ncol=n+1)
@@ -656,7 +686,7 @@ phat=(ginv(A)%*%Fbar)#[-(n+1)] # weights
 phat = phat[-(n+1)]
 Fbar=Fbar[-(n+1)]
 
-# # Graph of Fbar: (not good for n=200,500, good for n=100,300)
+# # Graph of Fbar: (not good for n=200,500, good for n=100,300, on Canadian Life Insurance Data)
 
 # FBarFun = function(x,y){
 #   min(Fbar[((Z1 >= x) * (Z2 >= y))])
