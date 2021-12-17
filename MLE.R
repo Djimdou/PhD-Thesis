@@ -1,6 +1,6 @@
 # # Packages installation and loading
 
-#install.packages(c('copula','pracma','survival','MASS'))# ,'SurvCorr','tabulizer','tryCatchLog','mhazard','CASdatasets'
+install.packages(c('copula','pracma','SurvCorr','survival','MASS'))# ,'SurvCorr','tabulizer','tryCatchLog','mhazard','CASdatasets'
 
 library(copula) # for claytonCopula
 library(survival) # univariate Kaplan-Meier estimators, kidney data
