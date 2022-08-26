@@ -17,12 +17,14 @@ W = 1:m/m #seq(from=1/n,to=1,by=0.01) # grid for the x-axis
 
 cop <- indepCopula(dim=2)
 Phi_true = -log(W)
+K_true = W*(1-log(W))
 
 # Clayton copula
 
 theta = 2
 cop <- claytonCopula(param=theta,dim=2)
 Phi_true = (W**(-theta)-1)/theta
+K_true = W*(1+(1/theta)*(1-W**theta))
 
 # AMH copula
 
@@ -44,7 +46,7 @@ Phi_true = (-log(W))**theta
 
 # # Sampling X and Y
 
-n = 750 # size of sample
+n = 1000 # size of sample
 
 alpha = 2 # Weibull distribution shape parameter
 beta = 2 # Weibull distribution scale parameter
@@ -128,15 +130,19 @@ legend("topright",legend=c("true density","integral estimator","differential est
 # # # Graph (for Statistics Papers article): comparision to empirical copula process
 
 Kn_hat <- W+Phi_est_int/h.interp
-Ylim <- range(c(Kn_hat,W),na.rm = TRUE)
+Ylim <- range(c(Kn_hat,K_true,Kn(W)),na.rm = TRUE)
 
 plot(W,Kn(W),type="l",ylim=Ylim,xlab="t",ylab="Kn")
 lines(W,Kn_hat,col="red")
+lines(W,K_true,col="green")
 
 # Write to csv (for LaTex)
 
-write.csv(x=data.frame(cbind(W,Kn_hat,Kn(W))),
-          file="C:/Users/djimd/OneDrive/Documents/Concordia - PhD/Thesis/Written Articles/Statistical Papers/clayton_empirical_kendall_750.csv",
+K.data <- data.frame(cbind(W,K_true,Kn_hat,Kn(W)))
+colnames(K.data) <- c("W","K_true","Kn_hat","Kn")
+
+write.csv(x=K.data,
+          file="C:/Users/djimd/OneDrive/Documents/Concordia - PhD/Thesis/Written Articles/Statistical Papers/clayton_empirical_kendall_1000.csv",
           row.names = FALSE)
 
 # # # # # # # # #  Limiting behavior of Estimator 1 (differential) # # # # # # # # # # # # # 
